@@ -27,7 +27,13 @@ namespace AddonFusion.Patches
         private static void StunFlash(ref FlashlightItem __instance)
         {
             Addon addon = __instance.GetComponent<Addon>();
-            if (addon != null && !string.IsNullOrEmpty(addon.addonName) && addon.addonName.Equals("Lens") && __instance.isBeingUsed && !isFlashing)
+            if (addon != null
+                && !string.IsNullOrEmpty(addon.addonName)
+                && addon.addonName.Equals("Flashlight Lens")
+                && __instance.playerHeldBy != null
+                && __instance.playerHeldBy == GameNetworkManager.Instance.localPlayerController
+                && __instance.isBeingUsed
+                && !isFlashing)
             {
                 FlashlightItem flashlightItem = __instance;
                 foreach (EnemyAI enemy in blindableEnemies.Where(e => e.enemyType != null && e.enemyType.canBeStunned && e.eye != null))
@@ -73,6 +79,11 @@ namespace AddonFusion.Patches
                         }
                     }
                 }
+
+                if (__instance.flashlightBulb.spotAngle != maxSpotAngle)
+                {
+                    __instance.flashlightBulb.spotAngle = maxSpotAngle;
+                }
             }
         }
 
@@ -86,19 +97,14 @@ namespace AddonFusion.Patches
                 yield return new WaitForSeconds(0.1f);
                 timePassed += 0.1f;
                 flashlightItem.flashlightBulb.spotAngle = Mathf.Lerp(maxSpotAngle, minSpotAngle, timePassed / flashTime);
-
-                if (entity is PlayerControllerB player && GameNetworkManager.Instance.localPlayerController == player && HUDManager.Instance.flashFilter < timePassed / flashTime)
-                {
-                    HUDManager.Instance.flashFilter = timePassed / flashTime;
-                }
-
+                if (entity is PlayerControllerB player) AddonFusionNetworkManager.Instance.BlindPlayerServerRpc((int)player.playerClientId, timePassed / flashTime);
                 if (timePassed >= flashTime) break;
             }
 
             if (isFlashing)
             {
                 flashlightItem.flashlightBulb.spotAngle = maxSpotAngle * 2;
-                if (entity is EnemyAI enemy) enemy.SetEnemyStunned(setToStunned: true, stunTime, flashlightItem.playerHeldBy);
+                if (entity is EnemyAI enemy) AddonFusionNetworkManager.Instance.StunEnemyServerRpc(enemy.NetworkObject, stunTime, (int)flashlightItem.playerHeldBy.playerClientId);
                 if (batteryConsumption > 0f) flashlightItem.insertedBattery.charge = flashlightItem.insertedBattery.charge * batteryConsumption / 100;
                 yield return new WaitForSeconds(0.1f);
                 isFlashing = false;
@@ -110,8 +116,9 @@ namespace AddonFusion.Patches
         {
             if (flashlightItem.isBeingUsed
                 && ((entity is PlayerControllerB player
-                    && player.HasLineOfSightToPosition(flashlightItem.flashlightBulb.transform.position, angle, distance)
-                    && Mathf.Abs(Vector3.Angle(flashlightItem.flashlightBulb.transform.forward, player.playerEye.position - flashlightItem.flashlightBulb.transform.position)) < lightAngle)
+                    && player.HasLineOfSightToPosition(flashlightItem.flashlightBulb.transform.position + Vector3.up * 0.4f, angle, distance)
+                    && Mathf.Abs(Vector3.Angle(flashlightItem.flashlightBulb.transform.forward, player.playerEye.position - flashlightItem.flashlightBulb.transform.position)) < lightAngle
+                    && Mathf.Abs(Vector3.Angle(player.gameplayCamera.transform.forward, -1 * (player.playerEye.position - flashlightItem.flashlightBulb.transform.position + Vector3.up * 0.4f))) <= 40f)
                     || (entity is EnemyAI enemy
                         && enemy.CheckLineOfSightForPosition(flashlightItem.flashlightBulb.transform.position, angle, distance)
                         && Mathf.Abs(Vector3.Angle(flashlightItem.flashlightBulb.transform.forward, enemy.eye.position - flashlightItem.flashlightBulb.transform.position)) < lightAngle)))

@@ -57,27 +57,50 @@
     <Reference Include="UnityEngine">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Lethal Company\Lethal Company_Data\Managed\UnityEngine.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.AIModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
+    <Reference Include="UnityEngine.AnimationModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Lethal Company\Lethal Company_Data\Managed\UnityEngine.AnimationModule.dll</HintPath>
+    </Reference>
     <Reference Include="UnityEngine.AssetBundleModule">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Lethal Company\Lethal Company_Data\Managed\UnityEngine.AssetBundleModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.AudioModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
     <Reference Include="UnityEngine.CoreModule">
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Lethal Company\Lethal Company_Data\Managed\UnityEngine.CoreModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.ParticleSystemModule, Version=0.0.0.0, Culture=neutral, PublicKeyToken=null" />
     <Reference Include="UnityEngine.PhysicsModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Lethal Company\Lethal Company_Data\Managed\UnityEngine.PhysicsModule.dll</HintPath>
     </Reference>
+    <Reference Include="UnityEngine.VehiclesModule, Version=0.0.0.0, Culture=neutral, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>..\..\..\..\..\..\Program Files (x86)\Steam\steamapps\common\Lethal Company\Lethal Company_Data\Managed\UnityEngine.VehiclesModule.dll</HintPath>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AddonFusionNetworkManager.cs" />
     <Compile Include="Addon.cs" />
+    <Compile Include="AddonValues\SaltTankValue.cs" />
+    <Compile Include="Behaviours\AddonProp.cs" />
+    <Compile Include="Behaviours\BladeSharpener.cs" />
+    <Compile Include="Behaviours\CapsuleHoiPoi.cs" />
+    <Compile Include="Behaviours\ProtectiveCord.cs" />
+    <Compile Include="Behaviours\SaltTank.cs" />
     <Compile Include="ConfigManager.cs" />
     <Compile Include="CustomItem.cs" />
     <Compile Include="AddonValues\LensValue.cs" />
     <Compile Include="Behaviours\FlashlightLens.cs" />
+    <Compile Include="GraffitiCollision.cs" />
     <Compile Include="Patches\EnemyAIPatch.cs" />
     <Compile Include="Patches\FlashlightItemPatch.cs" />
-    <Compile Include="Patches\GrabbableObjectPatch.cs" />
+    <Compile Include="Patches\PlayerControllerBPatch.cs" />
+    <Compile Include="Patches\SprayPaintItemPatch.cs" />
+    <Compile Include="Patches\StartOfRoundPatch.cs" />
     <Compile Include="Patches\RoundManagerPatch.cs" />
+    <Compile Include="Patches\StormyWeatherPatch.cs" />
+    <Compile Include="Patches\VehicleControllerPatch.cs" />
     <Compile Include="Plugin.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

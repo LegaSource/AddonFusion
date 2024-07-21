@@ -24,24 +24,41 @@ namespace AddonFusion
         internal static ManualLogSource mls;
         public static ConfigFile configFile;
 
+        public static GameObject managerPrefab = NetworkPrefabs.CreateNetworkPrefab("AddonFusionNetworkManager");
+
         public static List<CustomItem> customItems = new List<CustomItem>();
+        public static List<CapsuleHoiPoiValue> capsuleHoiPoiValues = new List<CapsuleHoiPoiValue>();
         public static List<LensValue> lensValues = new List<LensValue>();
+        public static List<SaltTankValue> saltTankValues = new List<SaltTankValue>();
 
         public void Awake()
         {
             mls = BepInEx.Logging.Logger.CreateLogSource("AddonFusion");
             configFile = Config;
             ConfigManager.Load();
+            capsuleHoiPoiValues = ConfigManager.GetCapsuleValuesFromConfig();
             lensValues = ConfigManager.GetLensValuesFromConfig();
+            saltTankValues = ConfigManager.GetSaltTankValuesFromConfig();
 
+            LoadManager();
             NetcodePatcher();
-            LoadItems();            
+            LoadItems();
 
-            harmony.PatchAll(typeof(GrabbableObjectPatch));
+            harmony.PatchAll(typeof(StartOfRoundPatch));
+            harmony.PatchAll(typeof(RoundManagerPatch));
+            harmony.PatchAll(typeof(PlayerControllerBPatch));
+            harmony.PatchAll(typeof(VehicleControllerPatch));
             harmony.PatchAll(typeof(AddonFusion));
             harmony.PatchAll(typeof(FlashlightItemPatch));
+            harmony.PatchAll(typeof(SprayPaintItemPatch));
             harmony.PatchAll(typeof(EnemyAIPatch));
-            harmony.PatchAll(typeof(RoundManagerPatch));
+            harmony.PatchAll(typeof(StormyWeatherPatch));
+        }
+
+        public static void LoadManager()
+        {
+            Utilities.FixMixerGroups(managerPrefab);
+            managerPrefab.AddComponent<AddonFusionNetworkManager>();
         }
 
         private static void NetcodePatcher()
@@ -68,7 +85,11 @@ namespace AddonFusion
             
             customItems = new List<CustomItem>
             {
-                new CustomItem(true, typeof(FlashlightLens), bundle.LoadAsset<Item>("Assets/Lens/FlashlightLensItem.asset"), ConfigManager.isLensSpawnable.Value, ConfigManager.lensRarity.Value, ConfigManager.isLensPurchasable.Value, "This is info about item\n\n", ConfigManager.lensPrice.Value)
+                new CustomItem(ConfigManager.isCapsuleEnabled.Value, typeof(CapsuleHoiPoi), bundle.LoadAsset<Item>("Assets/CapsuleHoiPoi/CapsuleHoiPoiItem.asset"), ConfigManager.isCapsuleSpawnable.Value, ConfigManager.capsuleRarity.Value, ConfigManager.isCapsulePurchasable.Value, "This capsule was created by Capsule Corporation, it allows you to store any object\n\n", ConfigManager.capsulePrice.Value),
+                new CustomItem(ConfigManager.isSaltTankEnabled.Value, typeof(SaltTank), bundle.LoadAsset<Item>("Assets/SaltTank/SaltTankItem.asset"), ConfigManager.isSaltTankSpawnable.Value, ConfigManager.saltTankRarity.Value, ConfigManager.isSaltTankPurchasable.Value, "A salt tank to use with the spray paint, allowing you to repel spirits\n\n", ConfigManager.saltTankPrice.Value),
+                new CustomItem(ConfigManager.isCordEnabled.Value, typeof(ProtectiveCord), bundle.LoadAsset<Item>("Assets/ProtectiveCord/ProtectiveCordItem.asset"), ConfigManager.isCordSpawnable.Value, ConfigManager.cordRarity.Value, ConfigManager.isCordPurchasable.Value, "A protective cord to use with the shovel, blocks damage\n\n", ConfigManager.cordPrice.Value),
+                new CustomItem(ConfigManager.isLensEnabled.Value, typeof(FlashlightLens), bundle.LoadAsset<Item>("Assets/Lens/FlashlightLensItem.asset"), ConfigManager.isLensSpawnable.Value, ConfigManager.lensRarity.Value, ConfigManager.isLensPurchasable.Value, "A lens that optimises the power of the light\n\n", ConfigManager.lensPrice.Value),
+                new CustomItem(ConfigManager.isSharpenerEnabled.Value, typeof(BladeSharpener), bundle.LoadAsset<Item>("Assets/BladeSharpener/BladeSharpenerItem.asset"), ConfigManager.isSharpenerSpawnable.Value, ConfigManager.sharpenerRarity.Value, ConfigManager.isSharpenerPurchasable.Value, "A blade sharpener to use with the knife, deal critical damage\n\n", ConfigManager.sharpenerPrice.Value)
             };
 
             foreach (CustomItem customItem in customItems)
@@ -82,11 +103,7 @@ namespace AddonFusion
 
                     NetworkPrefabs.RegisterNetworkPrefab(customItem.Item.spawnPrefab);
                     Utilities.FixMixerGroups(customItem.Item.spawnPrefab);
-
-                    if (customItem.IsSpawnable)
-                    {
-                        Items.RegisterScrap(customItem.Item, customItem.Rarity, Levels.LevelTypes.All);
-                    }
+                    Items.RegisterItem(customItem.Item);
 
                     if (customItem.IsPurchasable)
                     {
@@ -97,20 +114,6 @@ namespace AddonFusion
                     }
                 }
             }
-
-            /*FlashlightLens script = flashlightLens.spawnPrefab.AddComponent<FlashlightLens>();
-            script.grabbable = true;
-            script.grabbableToEnemies = true;
-            script.itemProperties = flashlightLens;
-
-            NetworkPrefabs.RegisterNetworkPrefab(flashlightLens.spawnPrefab);
-            Utilities.FixMixerGroups(flashlightLens.spawnPrefab);
-            Items.RegisterScrap(flashlightLens, 1000, Levels.LevelTypes.All);
-
-            TerminalNode node = ScriptableObject.CreateInstance<TerminalNode>();
-            node.clearPreviousText = true;
-            node.displayText = "This is info about item\n\n";
-            Items.RegisterShopItem(flashlightLens, null, null, node, 0);*/
         }
     }
 }
