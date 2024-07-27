@@ -38,7 +38,7 @@ namespace AddonFusion
         public static ConfigEntry<int> lensPrice;
         public static ConfigEntry<string> lensEntityValues;
         public static ConfigEntry<string> lensExclusions;
-        // PROTECTIVE CORD
+        // BLADE SHARPENER
         public static ConfigEntry<bool> isSharpenerEnabled;
         public static ConfigEntry<bool> isSharpenerSpawnable;
         public static ConfigEntry<int> sharpenerRarity;
