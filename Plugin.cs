@@ -28,8 +28,10 @@ namespace AddonFusion
 
         public static List<CustomItem> customItems = new List<CustomItem>();
         public static List<CapsuleHoiPoiValue> capsuleHoiPoiValues = new List<CapsuleHoiPoiValue>();
-        public static List<LensValue> lensValues = new List<LensValue>();
         public static List<SaltTankValue> saltTankValues = new List<SaltTankValue>();
+        public static List<ProtectiveCordValue> protectiveCordValues = new List<ProtectiveCordValue>();
+        public static List<LensValue> lensValues = new List<LensValue>();
+        public static List<BladeSharpenerValue> bladeSharpenerValues = new List<BladeSharpenerValue>();
 
         public void Awake()
         {
@@ -37,8 +39,10 @@ namespace AddonFusion
             configFile = Config;
             ConfigManager.Load();
             capsuleHoiPoiValues = ConfigManager.GetCapsuleValuesFromConfig();
-            lensValues = ConfigManager.GetLensValuesFromConfig();
             saltTankValues = ConfigManager.GetSaltTankValuesFromConfig();
+            protectiveCordValues = ConfigManager.GetProtectiveCordValuesFromConfig();
+            lensValues = ConfigManager.GetLensValuesFromConfig();
+            bladeSharpenerValues = ConfigManager.GetBladeSharpenerValuesFromConfig();
 
             LoadManager();
             NetcodePatcher();

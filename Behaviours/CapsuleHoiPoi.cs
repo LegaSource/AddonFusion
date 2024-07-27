@@ -42,7 +42,7 @@ namespace AddonFusion.Behaviours
         public override void Update()
         {
             base.Update();
-            if (component != null && component is GrabbableObject grabbableObject)
+            if (ConfigManager.isCapsuleCharge.Value && component != null && component is GrabbableObject grabbableObject)
             {
                 CapsuleHoiPoiValue capsuleHoiPoiValue = AddonFusion.capsuleHoiPoiValues.Where(c => c.ItemName.Equals(grabbableObject.itemProperties?.itemName)).FirstOrDefault()
                         ?? AddonFusion.capsuleHoiPoiValues.Where(v => v.ItemName.Equals("default")).FirstOrDefault();
@@ -53,17 +53,20 @@ namespace AddonFusion.Behaviours
                 }
                 else if (grabbableObject is SprayPaintItem sprayPaintItem)
                 {
-                    float sprayCanTank = (float)AccessTools.Field(typeof(SprayPaintItem), "sprayCanTank").GetValue(sprayPaintItem);
-                    sprayCanTank = Mathf.Min(sprayCanTank + Time.deltaTime / capsuleHoiPoiValue.ChargeTime, 1f);
-                    AccessTools.Field(typeof(SprayPaintItem), "sprayCanTank").SetValue(sprayPaintItem, sprayCanTank);
+                    UpdateChargeValue(sprayPaintItem, "sprayCanTank", capsuleHoiPoiValue.ChargeTime);
                 }
                 else if (grabbableObject is TetraChemicalItem tetraChemicalItem)
                 {
-                    float fuel = (float)AccessTools.Field(typeof(TetraChemicalItem), "fuel").GetValue(tetraChemicalItem);
-                    fuel = Mathf.Min(fuel + Time.deltaTime / capsuleHoiPoiValue.ChargeTime, 1f);
-                    AccessTools.Field(typeof(TetraChemicalItem), "fuel").SetValue(tetraChemicalItem, fuel);
+                    UpdateChargeValue(tetraChemicalItem, "fuel", capsuleHoiPoiValue.ChargeTime);
                 }
             }
+        }
+
+        private void UpdateChargeValue<T>(T obj, string fieldName, float chargeTime)
+        {
+            float value = (float)AccessTools.Field(typeof(T), fieldName).GetValue(obj);
+            value = Mathf.Min(value + Time.deltaTime / chargeTime, 1f);
+            AccessTools.Field(typeof(T), fieldName).SetValue(obj, value);
         }
 
         public override void ItemActivate(bool used, bool buttonDown = true)

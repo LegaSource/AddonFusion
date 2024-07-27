@@ -42,8 +42,8 @@ namespace AddonFusion.Patches
                         ?? AddonFusion.lensValues.Where(v => v.EntityName.Equals("default")).FirstOrDefault();
                     if (lensValue != null)
                     {
-                        float flashTime = lensValue.FlashTime;
-                        float stunTime = lensValue.StunTime;
+                        float flashDuration = lensValue.FlashDuration;
+                        float stunDuration = lensValue.StunDuration;
                         float lightAngle = lensValue.LightAngle;
                         float angle = lensValue.EntityAngle;
                         int distance = lensValue.EntityDistance;
@@ -51,7 +51,7 @@ namespace AddonFusion.Patches
 
                         if (MeetConditions(enemy, ref flashlightItem, lightAngle, angle, distance))
                         {
-                            __instance.StartCoroutine(StunCoroutine(flashlightItem, enemy, flashTime, lightAngle, angle, distance, batteryConsumption, stunTime));
+                            __instance.StartCoroutine(StunCoroutine(flashlightItem, enemy, flashDuration, lightAngle, angle, distance, batteryConsumption, stunDuration));
                             break;
                         }
                     }
@@ -66,7 +66,7 @@ namespace AddonFusion.Patches
                 {
                     foreach (PlayerControllerB player in StartOfRound.Instance.allPlayerScripts.Where(p => p.isPlayerControlled && p != flashlightItem.playerHeldBy))
                     {
-                        float flashTime = lensValuePlayer.FlashTime;
+                        float flashDuration = lensValuePlayer.FlashDuration;
                         float lightAngle = lensValuePlayer.LightAngle;
                         float angle = lensValuePlayer.EntityAngle;
                         int distance = lensValuePlayer.EntityDistance;
@@ -74,7 +74,7 @@ namespace AddonFusion.Patches
 
                         if (MeetConditions(player, ref flashlightItem, lightAngle, angle, distance))
                         {
-                            __instance.StartCoroutine(StunCoroutine(flashlightItem, player, flashTime, lightAngle, angle, distance, batteryConsumption));
+                            __instance.StartCoroutine(StunCoroutine(flashlightItem, player, flashDuration, lightAngle, angle, distance, batteryConsumption));
                             break;
                         }
                     }
@@ -87,7 +87,7 @@ namespace AddonFusion.Patches
             }
         }
 
-        private static IEnumerator StunCoroutine<T>(FlashlightItem flashlightItem, T entity, float flashTime, float lightAngle, float angle, int distance, float batteryConsumption, float stunTime = 0f)
+        private static IEnumerator StunCoroutine<T>(FlashlightItem flashlightItem, T entity, float flashDuration, float lightAngle, float angle, int distance, float batteryConsumption, float stunDuration = 0f)
         {
             float timePassed = 0f;
             float minSpotAngle = maxSpotAngle / 3f;
@@ -96,15 +96,15 @@ namespace AddonFusion.Patches
             {
                 yield return new WaitForSeconds(0.1f);
                 timePassed += 0.1f;
-                flashlightItem.flashlightBulb.spotAngle = Mathf.Lerp(maxSpotAngle, minSpotAngle, timePassed / flashTime);
-                if (entity is PlayerControllerB player) AddonFusionNetworkManager.Instance.BlindPlayerServerRpc((int)player.playerClientId, timePassed / flashTime);
-                if (timePassed >= flashTime) break;
+                flashlightItem.flashlightBulb.spotAngle = Mathf.Lerp(maxSpotAngle, minSpotAngle, timePassed / flashDuration);
+                if (entity is PlayerControllerB player) AddonFusionNetworkManager.Instance.BlindPlayerServerRpc((int)player.playerClientId, timePassed / flashDuration);
+                if (timePassed >= flashDuration) break;
             }
 
             if (isFlashing)
             {
                 flashlightItem.flashlightBulb.spotAngle = maxSpotAngle * 2;
-                if (entity is EnemyAI enemy) AddonFusionNetworkManager.Instance.StunEnemyServerRpc(enemy.NetworkObject, stunTime, (int)flashlightItem.playerHeldBy.playerClientId);
+                if (entity is EnemyAI enemy) AddonFusionNetworkManager.Instance.StunEnemyServerRpc(enemy.NetworkObject, stunDuration, (int)flashlightItem.playerHeldBy.playerClientId);
                 if (batteryConsumption > 0f) flashlightItem.insertedBattery.charge = flashlightItem.insertedBattery.charge * batteryConsumption / 100;
                 yield return new WaitForSeconds(0.1f);
                 isFlashing = false;
