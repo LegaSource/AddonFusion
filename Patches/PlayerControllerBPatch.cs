@@ -18,7 +18,19 @@ namespace AddonFusion.Patches
         private static void FixVehicleParent(ref GrabbableObject ___currentlyGrabbingObject)
         {
             // Limiter le fix au véhicule au cas où le parent serait nécessaire ailleur
-            if (___currentlyGrabbingObject?.transform.parent?.GetComponent<VehicleController>() != null)
+            if (___currentlyGrabbingObject == null)
+            {
+                return;
+            }
+            if (___currentlyGrabbingObject.transform == null)
+            {
+                return;
+            }
+            if (___currentlyGrabbingObject.transform.parent == null)
+            {
+                return;
+            }
+            if (___currentlyGrabbingObject.transform.parent.GetComponent<VehicleController>() != null)
             {
                 ___currentlyGrabbingObject.transform.SetParent(null);
             }
@@ -28,7 +40,14 @@ namespace AddonFusion.Patches
         [HarmonyPostfix]
         private static void ItemSecondaryActivate(ref PlayerControllerB __instance)
         {
-            if (__instance.currentlyHeldObjectServer != null && __instance.currentlyHeldObjectServer is Shovel shovel && !shovel.reelingUp)
+            Addon addon;
+            if (__instance == GameNetworkManager.Instance.localPlayerController
+                && __instance.currentlyHeldObjectServer != null
+                && __instance.currentlyHeldObjectServer is Shovel shovel
+                && !shovel.reelingUp
+                && (addon = shovel.GetComponent<Addon>()) != null
+                && !string.IsNullOrEmpty(addon.addonName)
+                && addon.addonName.Equals("Protective Cord"))
             {
                 __instance.StartCoroutine(ParryCoroutine(shovel));
             }
@@ -38,7 +57,7 @@ namespace AddonFusion.Patches
         [HarmonyPrefix]
         private static bool DamagePlayer(ref PlayerControllerB __instance)
         {
-            if (isParrying && parriedEnemy != null && __instance.currentlyHeldObjectServer != null && __instance.currentlyHeldObjectServer is Shovel shovel)
+            if (isParrying && parriedEnemy != null && __instance.currentlyHeldObjectServer != null && __instance.currentlyHeldObjectServer is Shovel)
             {
                 ProtectiveCordValue protectiveCordValue = AddonFusion.protectiveCordValues.Where(v => v.EntityName.Equals(parriedEnemy.enemyType.enemyName)).FirstOrDefault()
                         ?? AddonFusion.protectiveCordValues.Where(v => v.EntityName.Equals("default")).FirstOrDefault();
@@ -46,7 +65,9 @@ namespace AddonFusion.Patches
                 AddonFusionNetworkManager.Instance.StunEnemyServerRpc(parriedEnemy.NetworkObject, protectiveCordValue.StunDuration, (int)__instance.playerClientId);
                 __instance.StartCoroutine(SpeedBoostCoroutine(__instance, protectiveCordValue.SpeedBoostDuration, protectiveCordValue.SpeedMultiplier / 100 + 1));
                 __instance.sprintMeter += 1f * protectiveCordValue.StaminaRegen / 100;
-                RoundManager.PlayRandomClip(shovel.shovelAudio, shovel.hitSFX);
+                GameObject audioObject = Object.Instantiate(AddonFusion.parrySound, __instance.transform.position, Quaternion.identity);
+                AudioSource audioSource = audioObject.GetComponent<AudioSource>();
+                Object.Destroy(audioObject, audioSource.clip.length);
                 return false;
             }
             else
@@ -68,6 +89,7 @@ namespace AddonFusion.Patches
                 ReelingUpShovel(true, ref shovel);
                 yield return new WaitForSeconds(ConfigManager.cordWindowDuration.Value);
                 ReelingUpShovel(false, ref shovel);
+                yield return new WaitForSeconds(ConfigManager.cordSpamCooldown.Value);
                 isParrying = false;
             }
         }

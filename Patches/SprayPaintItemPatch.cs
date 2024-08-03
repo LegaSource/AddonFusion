@@ -15,13 +15,6 @@ namespace AddonFusion.Patches
         public static List<EnemyAI> immunedEnemies = new List<EnemyAI>();
         public static Dictionary<EnemyAI, int> enemiesChanceToSwitchHauntingPlayer = new Dictionary<EnemyAI, int>();
 
-        [HarmonyPatch(typeof(SprayPaintItem), nameof(SprayPaintItem.Start))]
-        [HarmonyPostfix]
-        private static void StartPatch(ref SprayPaintItem __instance)
-        {
-            __instance.gameObject.AddComponent<Addon>();
-        }
-
         [HarmonyPatch(typeof(SprayPaintItem), "AddSprayPaintLocal")]
         [HarmonyPostfix]
         private static void AddColliderSprayPaint(ref SprayPaintItem __instance, ref bool __result, ref List<GameObject> ___sprayPaintDecals, ref int ___sprayPaintDecalsIndex, ref RaycastHit ___sprayHit)

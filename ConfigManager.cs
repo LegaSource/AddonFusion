@@ -29,6 +29,7 @@ namespace AddonFusion
         public static ConfigEntry<bool> isCordPurchasable;
         public static ConfigEntry<int> cordPrice;
         public static ConfigEntry<float> cordWindowDuration;
+        public static ConfigEntry<float> cordSpamCooldown;
         public static ConfigEntry<string> cordEntityValues;
         // FLASHLIGHT LENS
         public static ConfigEntry<bool> isLensEnabled;
@@ -73,6 +74,7 @@ namespace AddonFusion
             isCordPurchasable = AddonFusion.configFile.Bind<bool>("Protective Cord", "Purchasable", false, "Is the protective cord purchasable?");
             cordPrice = AddonFusion.configFile.Bind<int>("Protective Cord", "Price", 30, "Protective cord price");
             cordWindowDuration = AddonFusion.configFile.Bind<float>("Protective Cord", "Window duration", 0.35f, "Parrying window duration");
+            cordSpamCooldown = AddonFusion.configFile.Bind<float>("Protective Cord", "Spam cooldown", 1f, "Cooldown duration per use");
             cordEntityValues = AddonFusion.configFile.Bind<string>("Protective Cord", "Values", "default:10:1.5:5:100:10", "Values per entity, the format is EntityName:CooldownDuration:StunDuration:SpeedBoostDuration:SpeedMultiplier:StaminaRegen." +
                 "\nSpeedMultiplier: Speed multiplier percentage." +
                 "\nStaminaRegen: Stamina regen percentage.");

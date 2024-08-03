@@ -18,9 +18,10 @@ namespace AddonFusion
     {
         private const string modGUID = "Lega.AddonFusion";
         private const string modName = "Addon Fusion";
-        private const string modVersion = "1.0.0";
+        private const string modVersion = "1.0.3";
 
         private readonly Harmony harmony = new Harmony(modGUID);
+        private readonly static AssetBundle bundle = AssetBundle.LoadFromFile(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "addonfusion"));
         internal static ManualLogSource mls;
         public static ConfigFile configFile;
 
@@ -32,6 +33,9 @@ namespace AddonFusion
         public static List<ProtectiveCordValue> protectiveCordValues = new List<ProtectiveCordValue>();
         public static List<LensValue> lensValues = new List<LensValue>();
         public static List<BladeSharpenerValue> bladeSharpenerValues = new List<BladeSharpenerValue>();
+
+        public static GameObject stunParticle;
+        public static GameObject parrySound;
 
         public void Awake()
         {
@@ -47,12 +51,15 @@ namespace AddonFusion
             LoadManager();
             NetcodePatcher();
             LoadItems();
+            //LoadParticles();
+            LoadAudios();
 
             harmony.PatchAll(typeof(StartOfRoundPatch));
             harmony.PatchAll(typeof(RoundManagerPatch));
             harmony.PatchAll(typeof(PlayerControllerBPatch));
             harmony.PatchAll(typeof(VehicleControllerPatch));
             harmony.PatchAll(typeof(AddonFusion));
+            harmony.PatchAll(typeof(GrabbableObjectPatch));
             harmony.PatchAll(typeof(FlashlightItemPatch));
             harmony.PatchAll(typeof(SprayPaintItemPatch));
             harmony.PatchAll(typeof(EnemyAIPatch));
@@ -84,9 +91,6 @@ namespace AddonFusion
 
         public static void LoadItems()
         {
-            string assetDir = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "addonfusion");
-            AssetBundle bundle = AssetBundle.LoadFromFile(assetDir);
-            
             customItems = new List<CustomItem>
             {
                 new CustomItem(ConfigManager.isCapsuleEnabled.Value, typeof(CapsuleHoiPoi), bundle.LoadAsset<Item>("Assets/CapsuleHoiPoi/CapsuleHoiPoiItem.asset"), ConfigManager.isCapsuleSpawnable.Value, ConfigManager.capsuleRarity.Value, ConfigManager.isCapsulePurchasable.Value, "This capsule was created by Capsule Corporation, it allows you to store any object\n\n", ConfigManager.capsulePrice.Value),
@@ -118,6 +122,20 @@ namespace AddonFusion
                     }
                 }
             }
+        }
+
+        public static void LoadParticles()
+        {
+            stunParticle = bundle.LoadAsset<GameObject>("Assets/Stun/StunParticule.prefab");
+            NetworkPrefabs.RegisterNetworkPrefab(stunParticle);
+            Utilities.FixMixerGroups(stunParticle);
+        }
+
+        public static void LoadAudios()
+        {
+            parrySound = bundle.LoadAsset<GameObject>("Assets/ParrySound.prefab");
+            NetworkPrefabs.RegisterNetworkPrefab(parrySound);
+            Utilities.FixMixerGroups(parrySound);
         }
     }
 }

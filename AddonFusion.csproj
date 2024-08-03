@@ -98,7 +98,7 @@
     <Compile Include="GraffitiCollision.cs" />
     <Compile Include="Patches\EnemyAIPatch.cs" />
     <Compile Include="Patches\FlashlightItemPatch.cs" />
-    <Compile Include="Patches\KnifeItemPatch.cs" />
+    <Compile Include="Patches\GrabbableObjectPatch.cs" />
     <Compile Include="Patches\PlayerControllerBPatch.cs" />
     <Compile Include="Patches\SprayPaintItemPatch.cs" />
     <Compile Include="Patches\StartOfRoundPatch.cs" />

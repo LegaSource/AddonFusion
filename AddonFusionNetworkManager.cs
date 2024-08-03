@@ -30,6 +30,19 @@ namespace AddonFusion
         }
 
         [ServerRpc(RequireOwnership = false)]
+        public void StunPlayerServerRpc(int playerId)
+        {
+            StunPlayerClientRpc(playerId);
+        }
+
+        [ClientRpc]
+        public void StunPlayerClientRpc(int playerId)
+        {
+            PlayerControllerB player = StartOfRound.Instance.allPlayerObjects[playerId].GetComponent<PlayerControllerB>();
+            Instantiate(AddonFusion.stunParticle, player.gameplayCamera.transform.position + Vector3.up * 0.1f + Vector3.forward * 0.25f, player.transform.rotation);
+        }
+
+        [ServerRpc(RequireOwnership = false)]
         public void StunEnemyServerRpc(NetworkObjectReference enemyObject, float stunTime, int playerId)
         {
             StunEnemyClientRpc(enemyObject, stunTime, playerId);

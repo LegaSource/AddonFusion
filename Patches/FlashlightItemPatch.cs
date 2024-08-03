@@ -18,7 +18,6 @@ namespace AddonFusion.Patches
         [HarmonyPostfix]
         private static void StartPatch(ref FlashlightItem __instance)
         {
-            __instance.gameObject.AddComponent<Addon>();
             maxSpotAngle = __instance.flashlightBulb.spotAngle;
         }
 
@@ -29,7 +28,7 @@ namespace AddonFusion.Patches
             Addon addon = __instance.GetComponent<Addon>();
             if (addon != null
                 && !string.IsNullOrEmpty(addon.addonName)
-                && addon.addonName.Equals("Flashlight Lens")
+                && addon.addonName.Equals("Lens")
                 && __instance.playerHeldBy != null
                 && __instance.playerHeldBy == GameNetworkManager.Instance.localPlayerController
                 && __instance.isBeingUsed

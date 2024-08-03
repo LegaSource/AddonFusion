@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -7,6 +8,7 @@ namespace AddonFusion.Behaviours
     internal class AddonProp : PhysicsProp
     {
         protected virtual Type AddonType { get; }
+        protected virtual string ToolTip { get; }
 
         public override void ItemActivate(bool used, bool buttonDown = true)
         {
@@ -40,6 +42,11 @@ namespace AddonFusion.Behaviours
                     {
                         addon.hasAddon = true;
                         addon.addonName = itemProperties.itemName;
+                        GrabbableObject grabbableObject = item.GetComponent<GrabbableObject>();
+                        if (grabbableObject != null && !string.IsNullOrEmpty(ToolTip))
+                        {
+                            grabbableObject.itemProperties.toolTips = grabbableObject.itemProperties.toolTips.Concat(new[] { ToolTip }).ToArray();
+                        }
                         DestroyObjectInHand(playerHeldBy);
                     }
                     else if (IsOwner)
