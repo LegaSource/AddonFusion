@@ -18,7 +18,7 @@ namespace AddonFusion
     {
         private const string modGUID = "Lega.AddonFusion";
         private const string modName = "Addon Fusion";
-        private const string modVersion = "1.0.3";
+        private const string modVersion = "1.0.4";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         private readonly static AssetBundle bundle = AssetBundle.LoadFromFile(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "addonfusion"));
