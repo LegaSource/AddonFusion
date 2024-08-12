@@ -1,6 +1,5 @@
 ﻿using AddonFusion.AddonValues;
 using AddonFusion.Patches;
-using HarmonyLib;
 using System.Collections;
 using System.Linq;
 using Unity.Netcode;
@@ -11,6 +10,7 @@ namespace AddonFusion.Behaviours
     internal class CapsuleHoiPoi : PhysicsProp
     {
         public Component component;
+        public float repairModuleDuration = 0f;
         public Animator[] componentAnimators;
         public Renderer[] componentRenderers;
         public Collider[] componentColliders;
@@ -42,31 +42,45 @@ namespace AddonFusion.Behaviours
         public override void Update()
         {
             base.Update();
-            if (ConfigManager.isCapsuleCharge.Value && component != null && component is GrabbableObject grabbableObject)
+            if (component != null && component is GrabbableObject grabbableObject)
             {
-                CapsuleHoiPoiValue capsuleHoiPoiValue = AddonFusion.capsuleHoiPoiValues.Where(c => c.ItemName.Equals(grabbableObject.itemProperties?.itemName)).FirstOrDefault()
+                if (ConfigManager.isCapsuleCharge.Value
+                    && AFUtilities.GetEphemeralItem(grabbableObject) == null)
+                {
+                    CapsuleHoiPoiValue capsuleHoiPoiValue = AddonFusion.capsuleHoiPoiValues.Where(c => c.ItemName.Equals(grabbableObject.itemProperties?.itemName)).FirstOrDefault()
                         ?? AddonFusion.capsuleHoiPoiValues.Where(v => v.ItemName.Equals("default")).FirstOrDefault();
-                if (grabbableObject.itemProperties.requiresBattery)
-                {
-                    grabbableObject.insertedBattery.charge = Mathf.Min(grabbableObject.insertedBattery.charge + Time.deltaTime / capsuleHoiPoiValue.ChargeTime, 1f);
-                    grabbableObject.insertedBattery.empty = false;
+                    if (grabbableObject.itemProperties.requiresBattery)
+                    {
+                        grabbableObject.insertedBattery.charge = UpdateChargeValue(grabbableObject.insertedBattery.charge, capsuleHoiPoiValue.ChargeTime);
+                        grabbableObject.insertedBattery.empty = false;
+                    }
+                    else if (grabbableObject is SprayPaintItem sprayPaintItem)
+                    {
+                        sprayPaintItem.sprayCanTank = UpdateChargeValue(sprayPaintItem.sprayCanTank, capsuleHoiPoiValue.ChargeTime);
+                    }
+                    else if (grabbableObject is TetraChemicalItem tetraChemicalItem)
+                    {
+                        tetraChemicalItem.fuel = UpdateChargeValue(tetraChemicalItem.fuel, capsuleHoiPoiValue.ChargeTime);
+                    }
                 }
-                else if (grabbableObject is SprayPaintItem sprayPaintItem)
+                Addon addon;
+                if ((addon = AFUtilities.GetAddonInstalled(this, "Repair Module")) != null
+                    && grabbableObject.itemProperties.isScrap
+                    && grabbableObject.scrapValue > 0)
                 {
-                    UpdateChargeValue(sprayPaintItem, "sprayCanTank", capsuleHoiPoiValue.ChargeTime);
-                }
-                else if (grabbableObject is TetraChemicalItem tetraChemicalItem)
-                {
-                    UpdateChargeValue(tetraChemicalItem, "fuel", capsuleHoiPoiValue.ChargeTime);
+                    repairModuleDuration += Time.deltaTime;
+                    if (repairModuleDuration >= ConfigManager.repairModuleDuration.Value)
+                    {
+                        repairModuleDuration = ConfigManager.repairModuleDuration.Value;
+                        addon.RemoveAddon();
+                    }
                 }
             }
         }
 
-        private void UpdateChargeValue<T>(T obj, string fieldName, float chargeTime)
+        private float UpdateChargeValue(float charge, float chargeTime)
         {
-            float value = (float)AccessTools.Field(typeof(T), fieldName).GetValue(obj);
-            value = Mathf.Min(value + Time.deltaTime / chargeTime, 1f);
-            AccessTools.Field(typeof(T), fieldName).SetValue(obj, value);
+            return Mathf.Min(charge + Time.deltaTime / chargeTime, 1f);
         }
 
         public override void ItemActivate(bool used, bool buttonDown = true)
@@ -107,7 +121,7 @@ namespace AddonFusion.Behaviours
                 Component hitComponent = (Component)networkObject.gameObject.GetComponentInChildren<VehicleController>() ?? networkObject.gameObject.GetComponentInChildren<GrabbableObject>();
                 if (hitComponent is VehicleController vehicle)
                 {
-                    if (vehicle.physicsRegion.physicsTransform.GetComponentsInChildren<GrabbableObject>().Any(g => !(g is ClipboardItem))
+                    if (vehicle.physicsRegion.physicsTransform.GetComponentsInChildren<GrabbableObject>().Any(g => g is not ClipboardItem)
                         || vehicle.currentDriver != null
                         || vehicle.currentPassenger != null)
                     {
@@ -198,7 +212,7 @@ namespace AddonFusion.Behaviours
         private Vector3 AdjustPositionWithGroundCheck(Vector3 position)
         {
             // Effectuer un second raycast vers le bas pour ajuster la position par rapport au sol
-            Ray downRay = new Ray(position, Vector3.down);
+            Ray downRay = new(position, Vector3.down);
             if (Physics.Raycast(downRay, out RaycastHit hit, 30f, 832, QueryTriggerInteraction.Ignore))
             {
                 return hit.point + Vector3.up * 0.05f;
@@ -232,12 +246,36 @@ namespace AddonFusion.Behaviours
                     grabbableObject.startFallingPosition = grabbableObject.transform.parent.InverseTransformPoint(grabbableObject.startFallingPosition);
                 }
                 grabbableObject.FallToGround();
+                if (repairModuleDuration > 0f)
+                {
+                    SetProfitScrapValue(ref grabbableObject);
+                    Addon addon;
+                    if ((addon = AFUtilities.GetAddonInstalled(this, "Repair Module")) != null)
+                    {
+                        addon.RemoveAddon();
+                    }
+                }
             }
             StoreComponentInCapsule(false);
             this.component = null;
             componentAnimators = null;
             componentRenderers = null;
             componentColliders = null;
+        }
+
+        public void SetProfitScrapValue(ref GrabbableObject grabbableObject)
+        {
+            float rateProfit = ConfigManager.repairModuleProfit.Value * repairModuleDuration / ConfigManager.repairModuleDuration.Value;
+            repairModuleDuration = 0f;
+            grabbableObject.scrapValue = (int)(grabbableObject.scrapValue * (1f + rateProfit / 100f));
+            ScanNodeProperties scanNode = grabbableObject.gameObject.GetComponentInChildren<ScanNodeProperties>();
+            if (scanNode == null)
+            {
+                AddonFusion.mls.LogError("Scan node is missing for item!: " + grabbableObject.gameObject.name);
+                return;
+            }
+            scanNode.subText = $"Value: ${grabbableObject.scrapValue}";
+            scanNode.scrapValue = grabbableObject.scrapValue;
         }
 
         private IEnumerator ImmuneCoroutine()

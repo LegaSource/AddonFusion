@@ -26,9 +26,8 @@ namespace AddonFusion.Patches
         private static void StunFlash(ref FlashlightItem __instance)
         {
             Addon addon = __instance.GetComponent<Addon>();
-            if (addon != null
-                && !string.IsNullOrEmpty(addon.addonName)
-                && addon.addonName.Equals("Lens")
+            if ((addon = AFUtilities.GetAddonInstalled(__instance, "Lens")) != null
+                && !__instance.itemProperties.itemName.Equals("Laser pointer")
                 && __instance.playerHeldBy != null
                 && __instance.playerHeldBy == GameNetworkManager.Instance.localPlayerController
                 && __instance.isBeingUsed

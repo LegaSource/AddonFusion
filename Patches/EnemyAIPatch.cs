@@ -1,4 +1,5 @@
 ﻿using AddonFusion.AddonValues;
+using AddonFusion.Behaviours;
 using GameNetcodeStuff;
 using HarmonyLib;
 using System.Collections;
@@ -13,6 +14,7 @@ namespace AddonFusion.Patches
         [HarmonyPostfix]
         private static void StartEnemy(ref EnemyAI __instance)
         {
+            __instance.gameObject.AddComponent<EnemyAFBehaviour>();
             if (__instance.enemyType != null
                 && __instance.enemyType.canBeStunned
                 && __instance.eye != null
@@ -44,9 +46,7 @@ namespace AddonFusion.Patches
             if (playerWhoHit != null
                 && playerWhoHit.currentlyHeldObjectServer != null
                 && playerWhoHit.currentlyHeldObjectServer is KnifeItem knife
-                && (addon = knife.GetComponent<Addon>()) != null
-                && !string.IsNullOrEmpty(addon.addonName)
-                && addon.addonName.Equals("Blade Sharpener"))
+                && (addon = AFUtilities.GetAddonInstalled(knife, "Blade Sharpener")) != null)
             {
                 EnemyAI enemy = __instance;
                 BladeSharpenerValue bladeSharpenerValue = AddonFusion.bladeSharpenerValues.Where(v => v.EntityName.Equals(enemy.enemyType.enemyName)).FirstOrDefault()
@@ -63,6 +63,19 @@ namespace AddonFusion.Patches
                 }
             }
             return true;
+        }
+
+        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.HitEnemy))]
+        [HarmonyPostfix]
+        private static void HitEphemeralItem(ref PlayerControllerB playerWhoHit)
+        {
+            EphemeralItem ephemeralItem;
+            if (playerWhoHit != null
+                && playerWhoHit.currentlyHeldObjectServer != null
+                && (ephemeralItem = AFUtilities.GetEphemeralItem(playerWhoHit.currentlyHeldObjectServer)) != null)
+            {
+                ephemeralItem.use++;
+            }
         }
 
         [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.KillEnemy))]
@@ -90,6 +103,22 @@ namespace AddonFusion.Patches
             FlashlightItemPatch.blindableEnemies.Remove(enemy);
             yield return new WaitForSeconds(immunityDuration);
             FlashlightItemPatch.blindableEnemies.Add(enemy);
+        }
+
+        public static void PyrethrinTankBehaviour(EnemyAI enemy)
+        {
+            if (enemy.currentBehaviourStateIndex == 99)
+            {
+                PlayerControllerB player = enemy.GetComponent<EnemyAFBehaviour>()?.playerHitBy;
+                if (player != null)
+                {
+                    Transform transform = enemy.ChooseFarthestNodeFromPosition(player.transform.position, avoidLineOfSight: false);
+                    if (transform != null)
+                    {
+                        enemy.SetDestinationToPosition(transform.position);
+                    }
+                }
+            }
         }
     }
 }

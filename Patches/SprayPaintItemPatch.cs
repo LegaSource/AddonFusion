@@ -1,4 +1,5 @@
 ﻿using AddonFusion.AddonValues;
+using AddonFusion.Behaviours;
 using GameNetcodeStuff;
 using HarmonyLib;
 using System;
@@ -6,6 +7,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Unity.Netcode;
 using UnityEngine;
 
 namespace AddonFusion.Patches
@@ -14,6 +16,37 @@ namespace AddonFusion.Patches
     {
         public static List<EnemyAI> immunedEnemies = new List<EnemyAI>();
         public static Dictionary<EnemyAI, int> enemiesChanceToSwitchHauntingPlayer = new Dictionary<EnemyAI, int>();
+
+        [HarmonyPatch(typeof(SprayPaintItem), nameof(SprayPaintItem.LateUpdate))]
+        [HarmonyPrefix]
+        private static void DestroyEphemeralSpray(ref SprayPaintItem __instance)
+        {
+            if (__instance.IsOwner
+                && AFUtilities.GetEphemeralItem(__instance) != null
+                && __instance.sprayCanTank <= 0f)
+            {
+                AddonFusionNetworkManager.Instance.DestroyObjectServerRpc(__instance.GetComponent<NetworkObject>());
+            }
+        }
+
+        [HarmonyPatch(typeof(SprayPaintItem), "TrySprayingWeedKillerBottle")]
+        [HarmonyPrefix]
+        private static bool HitEnemyWithWeedKiller(ref SprayPaintItem __instance)
+        {
+            if (Physics.Raycast(new Ray(__instance.playerHeldBy.gameplayCamera.transform.position, __instance.playerHeldBy.gameplayCamera.transform.forward), out RaycastHit hit, 4.5f, 524288, QueryTriggerInteraction.Collide))
+            {
+                EnemyAICollisionDetect collisionDetect = hit.collider.GetComponent<EnemyAICollisionDetect>();
+                if (collisionDetect != null)
+                {
+                    Debug.Log("Collision avec " + collisionDetect.mainScript.enemyType.enemyName);
+                    if (AddonFusion.pyrethrinTankValues.Select(e => e.EntityName).Contains(collisionDetect.mainScript.enemyType.enemyName))
+                    {
+                        collisionDetect.mainScript.SwitchToBehaviourState(99);
+                    }
+                }
+            }
+            return true;
+        }
 
         [HarmonyPatch(typeof(SprayPaintItem), "AddSprayPaintLocal")]
         [HarmonyPostfix]
@@ -25,9 +58,7 @@ namespace AddonFusion.Patches
                 if (gameObject.GetComponent<Collider>() == null)
                 {
                     BoxCollider collider = gameObject.AddComponent<BoxCollider>();
-
-                    Addon addon = __instance.GetComponent<Addon>();
-                    if (addon != null && !string.IsNullOrEmpty(addon.addonName) && addon.addonName.Equals("Salt Tank"))
+                    if (AFUtilities.GetAddonInstalled(__instance, "Salt Tank") != null)
                     {
                         collider.name = "GraffitiCollision";
                     }
@@ -44,14 +75,17 @@ namespace AddonFusion.Patches
                 if (Physics.Raycast(new Ray(__instance.playerHeldBy.gameplayCamera.transform.position, __instance.playerHeldBy.gameplayCamera.transform.forward), out RaycastHit hit, 10f, 524288, QueryTriggerInteraction.Collide))
                 {
                     EnemyAICollisionDetect collisionDetect = hit.collider.GetComponent<EnemyAICollisionDetect>();
-                    ManageCollision(collisionDetect.mainScript);
+                    if (IsDressGirlChasing(ref collisionDetect) || IsHerobrineChasing(ref collisionDetect))
+                    {
+                        ManageCollision(collisionDetect.mainScript);
+                    }
                 }
             }
         }
 
         public static bool IsDressGirlChasing(ref EnemyAICollisionDetect collisionDetect)
         {
-            if (collisionDetect!= null
+            if (collisionDetect != null
                 && collisionDetect.mainScript is DressGirlAI girl
                 && girl.currentBehaviourStateIndex == 1
                 && GameNetworkManager.Instance.localPlayerController == girl.hauntingPlayer)
@@ -68,7 +102,7 @@ namespace AddonFusion.Patches
                 && herobrineType != null
                 && herobrineType.IsInstanceOfType(collisionDetect.mainScript)
                 && collisionDetect.mainScript.currentBehaviourStateIndex == 2
-                && GameNetworkManager.Instance.localPlayerController == (PlayerControllerB)AccessTools.Field(herobrineType, "hauntingPlayer").GetValue(collisionDetect.mainScript))
+                && GameNetworkManager.Instance.localPlayerController == (PlayerControllerB)herobrineType.GetField("hauntingPlayer").GetValue(collisionDetect.mainScript))
             {
                 return true;
             }
@@ -99,7 +133,7 @@ namespace AddonFusion.Patches
 
             if (herobrineType != null && herobrineType.IsInstanceOfType(enemy))
             {
-                herobrineType.GetMethod("SetEnemyVisible").Invoke(enemy, new object[] { false });
+                herobrineType.GetMethod("SetEnemyVisible").Invoke(enemy, [false]);
             }
             else
             {
@@ -117,7 +151,7 @@ namespace AddonFusion.Patches
 
                 if (herobrineType != null && herobrineType.IsInstanceOfType(enemy))
                 {
-                    herobrineType.GetMethod("SwitchState", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(enemy, new object[] { 1 });
+                    herobrineType.GetMethod("SwitchState", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(enemy, [1]);
                     if (UnityEngine.Random.Range(0, 100) < 50)
                     {
                         herobrineType.GetMethod("RequestNewTargetServerRpc", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(enemy, null);
@@ -125,8 +159,8 @@ namespace AddonFusion.Patches
                 }
                 else if (enemy is DressGirlAI girl)
                 {
-                    AccessTools.Method(typeof(DressGirlAI), "StopChasing").Invoke(girl, null);
-                    AccessTools.Method(typeof(DressGirlAI), "ChooseNewHauntingPlayerClientRpc").Invoke(girl, null);
+                    girl.StopChasing();
+                    girl.ChooseNewHauntingPlayerClientRpc();
                 }
             }
 
@@ -141,7 +175,7 @@ namespace AddonFusion.Patches
                 }
                 if (herobrineType != null && herobrineType.IsInstanceOfType(enemy))
                 {
-                    herobrineType.GetMethod("SetEnemyVisible").Invoke(enemy, new object[] { true });
+                    herobrineType.GetMethod("SetEnemyVisible").Invoke(enemy, [true]);
                 }
                 else
                 {

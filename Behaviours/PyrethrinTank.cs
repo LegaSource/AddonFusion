@@ -2,7 +2,7 @@
 
 namespace AddonFusion.Behaviours
 {
-    internal class SaltTank : AddonProp
+    internal class PyrethrinTank : AddonProp
     {
         public override Type AddonType => typeof(SprayPaintItem);
     }

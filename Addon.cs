@@ -4,7 +4,36 @@ namespace AddonFusion
 {
     internal class Addon : MonoBehaviour
     {
-        internal bool hasAddon = false;
-        internal string addonName;
+        public bool hasAddon = false;
+        public string addonName;
+        public string toolTip;
+
+        public void RemoveAddon()
+        {
+            GrabbableObject grabbableObject = GetComponentInParent<GrabbableObject>();
+            if (grabbableObject != null)
+            {
+                ScanNodeProperties scanNode = grabbableObject.gameObject.GetComponentInChildren<ScanNodeProperties>();
+                if (scanNode != null)
+                {
+                    string textToRemove = "\nAddon: " + addonName;
+                    if (scanNode.subText.Contains(textToRemove))
+                    {
+                        scanNode.subText = scanNode.subText.Remove(scanNode.subText.IndexOf(textToRemove), textToRemove.Length);
+                    }
+                    else
+                    {
+                        textToRemove = "Addon: " + addonName;
+                        if (scanNode.subText.Contains(textToRemove))
+                        {
+                            scanNode.subText = scanNode.subText.Remove(scanNode.subText.IndexOf(textToRemove), textToRemove.Length);
+                        }
+                    }
+                }
+            }
+            hasAddon = false;
+            addonName = null;
+            toolTip = null;
+        }
     }
 }

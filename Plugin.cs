@@ -18,7 +18,7 @@ namespace AddonFusion
     {
         private const string modGUID = "Lega.AddonFusion";
         private const string modName = "Addon Fusion";
-        private const string modVersion = "1.0.4";
+        private const string modVersion = "1.0.5";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         private readonly static AssetBundle bundle = AssetBundle.LoadFromFile(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "addonfusion"));
@@ -33,6 +33,9 @@ namespace AddonFusion
         public static List<ProtectiveCordValue> protectiveCordValues = new List<ProtectiveCordValue>();
         public static List<LensValue> lensValues = new List<LensValue>();
         public static List<BladeSharpenerValue> bladeSharpenerValues = new List<BladeSharpenerValue>();
+        public static List<PyrethrinTankValue> pyrethrinTankValues = new List<PyrethrinTankValue>();
+
+        public static List<CutomEphemeralItem> customEphemeralItems = new List<CutomEphemeralItem>();
 
         public static GameObject stunParticle;
         public static GameObject parrySound;
@@ -47,6 +50,7 @@ namespace AddonFusion
             protectiveCordValues = ConfigManager.GetProtectiveCordValuesFromConfig();
             lensValues = ConfigManager.GetLensValuesFromConfig();
             bladeSharpenerValues = ConfigManager.GetBladeSharpenerValuesFromConfig();
+            pyrethrinTankValues = ConfigManager.GetPyrethrinTankValuesFromConfig();
 
             LoadManager();
             NetcodePatcher();
@@ -54,14 +58,17 @@ namespace AddonFusion
             //LoadParticles();
             LoadAudios();
 
+            harmony.PatchAll(typeof(GameNetworkManagerPatch));
             harmony.PatchAll(typeof(StartOfRoundPatch));
             harmony.PatchAll(typeof(RoundManagerPatch));
             harmony.PatchAll(typeof(PlayerControllerBPatch));
             harmony.PatchAll(typeof(VehicleControllerPatch));
             harmony.PatchAll(typeof(AddonFusion));
+            harmony.PatchAll(typeof(ItemChargerPatch));
             harmony.PatchAll(typeof(GrabbableObjectPatch));
             harmony.PatchAll(typeof(FlashlightItemPatch));
             harmony.PatchAll(typeof(SprayPaintItemPatch));
+            harmony.PatchAll(typeof(TetraChemicalItemPatch));
             harmony.PatchAll(typeof(EnemyAIPatch));
             harmony.PatchAll(typeof(StormyWeatherPatch));
         }
@@ -97,7 +104,10 @@ namespace AddonFusion
                 new CustomItem(ConfigManager.isSaltTankEnabled.Value, typeof(SaltTank), bundle.LoadAsset<Item>("Assets/SaltTank/SaltTankItem.asset"), ConfigManager.isSaltTankSpawnable.Value, ConfigManager.saltTankRarity.Value, ConfigManager.isSaltTankPurchasable.Value, "A salt tank to use with the spray paint, allowing you to repel spirits\n\n", ConfigManager.saltTankPrice.Value),
                 new CustomItem(ConfigManager.isCordEnabled.Value, typeof(ProtectiveCord), bundle.LoadAsset<Item>("Assets/ProtectiveCord/ProtectiveCordItem.asset"), ConfigManager.isCordSpawnable.Value, ConfigManager.cordRarity.Value, ConfigManager.isCordPurchasable.Value, "A protective cord to use with the shovel, blocks damage\n\n", ConfigManager.cordPrice.Value),
                 new CustomItem(ConfigManager.isLensEnabled.Value, typeof(FlashlightLens), bundle.LoadAsset<Item>("Assets/Lens/FlashlightLensItem.asset"), ConfigManager.isLensSpawnable.Value, ConfigManager.lensRarity.Value, ConfigManager.isLensPurchasable.Value, "A lens that optimises the power of the light\n\n", ConfigManager.lensPrice.Value),
-                new CustomItem(ConfigManager.isSharpenerEnabled.Value, typeof(BladeSharpener), bundle.LoadAsset<Item>("Assets/BladeSharpener/BladeSharpenerItem.asset"), ConfigManager.isSharpenerSpawnable.Value, ConfigManager.sharpenerRarity.Value, ConfigManager.isSharpenerPurchasable.Value, "A blade sharpener to use with the knife, deal critical damage\n\n", ConfigManager.sharpenerPrice.Value)
+                new CustomItem(ConfigManager.isSharpenerEnabled.Value, typeof(BladeSharpener), bundle.LoadAsset<Item>("Assets/BladeSharpener/BladeSharpenerItem.asset"), ConfigManager.isSharpenerSpawnable.Value, ConfigManager.sharpenerRarity.Value, ConfigManager.isSharpenerPurchasable.Value, "A blade sharpener to use with the knife, deal critical damage\n\n", ConfigManager.sharpenerPrice.Value),
+                new CustomItem(ConfigManager.isSenzuEnabled.Value, typeof(Senzu), bundle.LoadAsset<Item>("Assets/Senzu/SenzuItem.asset"), ConfigManager.isSenzuSpawnable.Value, ConfigManager.senzuRarity.Value, ConfigManager.isSenzuPurchasable.Value, "This magic bean was grown by Karin and has healing properties\n\n", ConfigManager.senzuPrice.Value),
+                new CustomItem(ConfigManager.isPyrethrinTankEnabled.Value, typeof(PyrethrinTank), bundle.LoadAsset<Item>("Assets/PyrethrinTank/PyrethrinTankItem.asset"), ConfigManager.isPyrethrinTankSpawnable.Value, ConfigManager.pyrethrinTankRarity.Value, ConfigManager.isPyrethrinTankPurchasable.Value, "\n\n", ConfigManager.pyrethrinTankPrice.Value),
+                new CustomItem(ConfigManager.isRepairModuleEnabled.Value, typeof(RepairModule), bundle.LoadAsset<Item>("Assets/RepairModule/RepairModuleItem.asset"), ConfigManager.isRepairModuleSpawnable.Value, ConfigManager.repairModuleRarity.Value, ConfigManager.isRepairModulePurchasable.Value, "\n\n", ConfigManager.repairModulePrice.Value)
             };
 
             foreach (CustomItem customItem in customItems)

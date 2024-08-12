@@ -1,4 +1,7 @@
-﻿using HarmonyLib;
+﻿using AddonFusion.Behaviours;
+using HarmonyLib;
+using System.Linq;
+using Unity.Netcode;
 
 namespace AddonFusion.Patches
 {
@@ -8,14 +11,30 @@ namespace AddonFusion.Patches
         [HarmonyPostfix]
         private static void StartPatch(ref GrabbableObject __instance)
         {
-            if (!__instance.itemProperties.isScrap)
+            if (!__instance.itemProperties.isScrap && __instance.gameObject.GetComponent<Addon>() == null)
             {
                 __instance.gameObject.AddComponent<Addon>();
             }
         }
 
+        [HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.Update))]
+        [HarmonyPostfix]
+        private static void DestroyEphemeralItems(ref GrabbableObject __instance)
+        {
+            EphemeralItem ephemeralItem;
+            if (__instance.IsOwner
+                && (ephemeralItem = AFUtilities.GetEphemeralItem(__instance)) != null)
+            {
+                if ((__instance.itemProperties.requiresBattery && __instance.insertedBattery.empty)
+                    || (ephemeralItem.maxUse > 0 && ephemeralItem.use >= ephemeralItem.maxUse))
+                {
+                    AddonFusionNetworkManager.Instance.DestroyObjectServerRpc(__instance.GetComponent<NetworkObject>());
+                }
+            }
+        }
+
         [HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.LateUpdate))]
-        [HarmonyAfter(new string[] { "TestAccount666.ScannableTools" })]
+        [HarmonyAfter(["TestAccount666.ScannableTools"])]
         [HarmonyPostfix]
         private static void AddonScan(ref GrabbableObject __instance)
         {
@@ -25,9 +44,19 @@ namespace AddonFusion.Patches
                 ScanNodeProperties scanNode = __instance.gameObject.GetComponentInChildren<ScanNodeProperties>();
                 if (scanNode != null)
                 {
-                    if (scanNode.subText == null) scanNode.subText = "Addon: " + addon.addonName;
-                    else if (scanNode.subText != null && !scanNode.subText.Contains("Addon:")) scanNode.subText += "\nAddon: " + addon.addonName;
+                    if (string.IsNullOrEmpty(scanNode.subText)) scanNode.subText = "Addon: " + addon.addonName;
+                    else if (!string.IsNullOrEmpty(scanNode.subText) && !scanNode.subText.Contains("Addon:")) scanNode.subText += "\nAddon: " + addon.addonName;
                 }
+            }
+        }
+
+        [HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.SetControlTipsForItem))]
+        [HarmonyPostfix]
+        private static void SetAddonToolTip(ref GrabbableObject __instance)
+        {
+            if (__instance.gameObject.GetComponent<Addon>() != null && __instance.gameObject.GetComponent<Addon>().hasAddon && __instance.gameObject.GetComponent<Addon>().toolTip != null)
+            {
+                HUDManager.Instance.ChangeControlTipMultiple(__instance.itemProperties.toolTips.Concat([__instance.gameObject.GetComponent<Addon>().toolTip]).ToArray(), holdingItem: true, __instance.itemProperties);
             }
         }
     }

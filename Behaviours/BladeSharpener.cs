@@ -4,6 +4,6 @@ namespace AddonFusion.Behaviours
 {
     internal class BladeSharpener : AddonProp
     {
-        protected override Type AddonType => typeof(KnifeItem);
+        public override Type AddonType => typeof(KnifeItem);
     }
 }

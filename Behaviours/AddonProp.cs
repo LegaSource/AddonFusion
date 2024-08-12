@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
 
@@ -7,8 +6,8 @@ namespace AddonFusion.Behaviours
 {
     internal class AddonProp : PhysicsProp
     {
-        protected virtual Type AddonType { get; }
-        protected virtual string ToolTip { get; }
+        public virtual Type AddonType { get; }
+        public virtual string ToolTip { get; }
 
         public override void ItemActivate(bool used, bool buttonDown = true)
         {
@@ -35,18 +34,14 @@ namespace AddonFusion.Behaviours
             if (itemObject.TryGet(out NetworkObject networkObject))
             {
                 var item = networkObject.gameObject.GetComponentInChildren(AddonType);
-                if (item != null)
+                if (item != null && CheckSpecificItem(networkObject.gameObject))
                 {
                     Addon addon = item.GetComponent<Addon>() ?? item.gameObject.AddComponent<Addon>();
                     if (!addon.hasAddon)
                     {
                         addon.hasAddon = true;
                         addon.addonName = itemProperties.itemName;
-                        GrabbableObject grabbableObject = item.GetComponent<GrabbableObject>();
-                        if (grabbableObject != null && !string.IsNullOrEmpty(ToolTip))
-                        {
-                            grabbableObject.itemProperties.toolTips = grabbableObject.itemProperties.toolTips.Concat(new[] { ToolTip }).ToArray();
-                        }
+                        addon.toolTip = ToolTip;
                         DestroyObjectInHand(playerHeldBy);
                     }
                     else if (IsOwner)
@@ -55,6 +50,29 @@ namespace AddonFusion.Behaviours
                     }
                 }
             }
+        }
+
+        public bool CheckSpecificItem(GameObject gameObject)
+        {
+            SprayPaintItem sprayPaintItem = gameObject.GetComponent<SprayPaintItem>();
+            if (sprayPaintItem != null)
+            {
+                PyrethrinTank pyrethrinTank = base.gameObject.GetComponent<PyrethrinTank>();
+                SaltTank saltTank = base.gameObject.GetComponent<SaltTank>();
+                if (pyrethrinTank != null && sprayPaintItem.isWeedKillerSprayBottle)
+                {
+                    return true;
+                }
+                else if (saltTank != null && !sprayPaintItem.isWeedKillerSprayBottle)
+                {
+                    return true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return true;
         }
     }
 }

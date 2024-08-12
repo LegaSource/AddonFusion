@@ -1,8 +1,11 @@
 ﻿using AddonFusion.AddonValues;
+using AddonFusion.Behaviours;
 using GameNetcodeStuff;
 using HarmonyLib;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
+using Unity.Netcode;
 using UnityEngine;
 
 namespace AddonFusion.Patches
@@ -12,6 +15,8 @@ namespace AddonFusion.Patches
         public static bool isParrying = false;
         public static bool isParryOnCooldown = false;
         public static EnemyAI parriedEnemy;
+
+        public static List<PlayerControllerB> revivablePlayers = new List<PlayerControllerB>();
 
         [HarmonyPatch(typeof(PlayerControllerB), "BeginGrabObject")]
         [HarmonyPostfix]
@@ -40,16 +45,19 @@ namespace AddonFusion.Patches
         [HarmonyPostfix]
         private static void ItemSecondaryActivate(ref PlayerControllerB __instance)
         {
-            Addon addon;
-            if (__instance == GameNetworkManager.Instance.localPlayerController
-                && __instance.currentlyHeldObjectServer != null
-                && __instance.currentlyHeldObjectServer is Shovel shovel
+            ShovelSecondaryActivate(ref __instance);
+            SenzuSecondaryActivate(ref __instance);
+        }
+
+        private static void ShovelSecondaryActivate(ref PlayerControllerB player)
+        {
+            if (player == GameNetworkManager.Instance.localPlayerController
+                && player.currentlyHeldObjectServer != null
+                && player.currentlyHeldObjectServer is Shovel shovel
                 && !shovel.reelingUp
-                && (addon = shovel.GetComponent<Addon>()) != null
-                && !string.IsNullOrEmpty(addon.addonName)
-                && addon.addonName.Equals("Protective Cord"))
+                && AFUtilities.GetAddonInstalled(shovel, "Protective Cord") != null)
             {
-                __instance.StartCoroutine(ParryCoroutine(shovel));
+                player.StartCoroutine(ParryCoroutine(shovel));
             }
         }
 
@@ -74,6 +82,16 @@ namespace AddonFusion.Patches
             {
                 parriedEnemy = null;
                 return true;
+            }
+        }
+
+        [HarmonyPatch(typeof(PlayerControllerB), "KillPlayerClientRpc")]
+        [HarmonyPostfix]
+        private static void PostKillPlayerClientRpc(ref PlayerControllerB __instance)
+        {
+            if (__instance.isPlayerDead && __instance.deadBody != null)
+            {
+                __instance.StartCoroutine(ReviveCoroutine(__instance));
             }
         }
 
@@ -102,9 +120,9 @@ namespace AddonFusion.Patches
             shovel.playerHeldBy.playerBodyAnimator.SetBool("reelingUp", value: enable);
             if (enable)
             {
-                if ((Coroutine)AccessTools.Field(typeof(Shovel), "reelingUpCoroutine").GetValue(shovel) != null)
+                if (shovel.reelingUpCoroutine != null)
                 {
-                    shovel.StopCoroutine((Coroutine)AccessTools.Field(typeof(Shovel), "reelingUpCoroutine").GetValue(shovel));
+                    shovel.StopCoroutine(shovel.reelingUpCoroutine);
                 }
                 shovel.playerHeldBy.playerBodyAnimator.ResetTrigger("shovelHit");
                 shovel.shovelAudio.PlayOneShot(shovel.reelUp);
@@ -121,12 +139,43 @@ namespace AddonFusion.Patches
 
         private static IEnumerator SpeedBoostCoroutine(PlayerControllerB player, float duration, float speedMultiplier)
         {
-            float sprintMultiplier = (float)AccessTools.Field(typeof(PlayerControllerB), "sprintMultiplier").GetValue(player);
-            float speedBase = sprintMultiplier;
-            sprintMultiplier *= speedMultiplier;
-            AccessTools.Field(typeof(PlayerControllerB), "sprintMultiplier").SetValue(player, sprintMultiplier);
+            float speedBase = player.sprintMultiplier;
+            player.sprintMultiplier *= speedMultiplier;
             yield return new WaitForSeconds(duration);
-            AccessTools.Field(typeof(PlayerControllerB), "sprintMultiplier").SetValue(player, speedBase);
+            player.sprintMultiplier = speedBase;
+        }
+
+        private static void SenzuSecondaryActivate(ref PlayerControllerB player)
+        {
+            if (player == GameNetworkManager.Instance.localPlayerController
+                && player.currentlyHeldObjectServer != null
+                && player.currentlyHeldObjectServer is Senzu)
+            {
+                int healthBefore = player.health;
+                player.health = 100;
+                HUDManager.Instance.UpdateHealthUI(player.health, hurtPlayer: false);
+                player.DamagePlayerClientRpc((player.health - healthBefore) * -1, player.health);
+                if (player.criticallyInjured)
+                {
+                    player.MakeCriticallyInjured(enable: false);
+                }
+                player.sprintMeter = 1f;
+                AddonFusionNetworkManager.Instance.DestroyObjectServerRpc(player.currentlyHeldObjectServer.GetComponent<NetworkObject>());
+            }
+        }
+
+        private static IEnumerator ReviveCoroutine(PlayerControllerB player)
+        {
+            if (!revivablePlayers.Contains(player)) revivablePlayers.Add(player);
+            float elapsedTime = 0f;
+            float checkInterval = 1f;
+            while (elapsedTime < ConfigManager.senzuReviveDuration.Value)
+            {
+                if (!revivablePlayers.Contains(player)) yield break;
+                yield return new WaitForSeconds(checkInterval);
+                elapsedTime += checkInterval;
+            }
+            revivablePlayers.Remove(player);
         }
     }
 }
