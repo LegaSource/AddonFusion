@@ -22,6 +22,13 @@ namespace AddonFusion.Patches
         private static void EndGame()
         {
             FlashlightItemPatch.blindableEnemies.Clear();
+            if (ConfigManager.isEphemeralDestroyEnabled.Value)
+            {
+                foreach (GrabbableObject grabbableObject in UnityEngine.Object.FindObjectsByType<GrabbableObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None).Where(g => AFUtilities.GetEphemeralItem(g) != null))
+                {
+                    AddonFusionNetworkManager.Instance.DestroyObjectServerRpc(grabbableObject.GetComponent<NetworkObject>());
+                }
+            }
         }
 
         private static void AddNewItems(ref RoundManager roundManager)
@@ -37,36 +44,16 @@ namespace AddonFusion.Patches
                 int nbActiveItem = 0;
                 AddonProp addonProp = customItem.Item.spawnPrefab.GetComponent<AddonProp>();
                 Addon addon;
-                foreach (GrabbableObject grabbableObject in UnityEngine.Object.FindObjectsByType<GrabbableObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
-                {
-                    Debug.Log("- Grabbable object: " + grabbableObject.itemProperties.itemName);
-                }
-                Debug.Log("Addon: " + customItem.Item.itemName);
                 foreach (GrabbableObject grabbableObject in UnityEngine.Object.FindObjectsOfType<GrabbableObject>()
                     .Where(g => (!g.itemProperties.isScrap || g.itemProperties.itemName.Equals("Kitchen knife"))
                         && g.gameObject.GetComponent(addonProp.AddonType) != null
                         && addonProp.CheckSpecificItem(g.gameObject)))
                 {
-                    Debug.Log("Item trouvé pour " + customItem.Item.itemName + ": " + grabbableObject.itemProperties.itemName);
-                    if ((addon = grabbableObject.gameObject.GetComponent<Addon>()) != null)
-                    {
-                        if (addon.hasAddon)
-                        {
-                            Debug.Log("Possède un addon: " + addon.addonName);
-                        }
-                        else
-                        {
-                            Debug.Log("Ne possède pas d'addon");
-                            nbActiveItem++;
-                        }
-                    }
+                    if ((addon = grabbableObject.gameObject.GetComponent<Addon>()) != null && !addon.hasAddon) nbActiveItem++;
                 }
-                Debug.Log("Active items = " + nbActiveItem);
                 int nbActiveAddon = UnityEngine.Object.FindObjectsOfType<GrabbableObject>().Where(g => g.itemProperties == customItem.Item).Count();
-                Debug.Log("Active addons = " + nbActiveAddon);
                 for (int i = 0; i < nbActiveItem + ConfigManager.spawnAddonPerItem.Value - nbActiveAddon; i++)
                 {
-                    Debug.Log("Tentative de spawn item de rareté: " + customItem.Rarity);
                     if (new System.Random().Next(1, 100) <= customItem.Rarity)
                     {
                         SpawnNewItem(ref roundManager, customItem.Item);

@@ -1,4 +1,5 @@
 ﻿using AddonFusion.Behaviours;
+using GameNetcodeStuff;
 using HarmonyLib;
 using System.Linq;
 using Unity.Netcode;
@@ -36,7 +37,7 @@ namespace AddonFusion.Patches
             if (__instance.IsServer)
             {
                 EphemeralItem ephemeralItem;
-                foreach (GrabbableObject grabbableObject in Object.FindObjectsByType<GrabbableObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)/*.Where(g => AFUtilities.GetEphemeralItem(g) != null)*/)
+                foreach (GrabbableObject grabbableObject in Object.FindObjectsByType<GrabbableObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
                 {
                     if ((ephemeralItem = AFUtilities.GetEphemeralItem(grabbableObject)) != null)
                     {
@@ -57,12 +58,25 @@ namespace AddonFusion.Patches
                     }
                 }
                 Addon addon;
-                foreach (GrabbableObject grabbableObject in Object.FindObjectsByType<GrabbableObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None)/*.Where(g => g.gameObject.GetComponent<Addon>() != null && g.gameObject.GetComponent<Addon>().hasAddon)*/)
+                foreach (GrabbableObject grabbableObject in Object.FindObjectsByType<GrabbableObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None))
                 {
                     if ((addon = AFUtilities.GetAddonInstalled(grabbableObject)) != null)
                     {
                         AddonFusionNetworkManager.Instance.SetAddonClientRpc(grabbableObject.GetComponent<NetworkObject>(), addon.addonName);
                     }
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(StartOfRound), nameof(StartOfRound.OnPlayerConnectedClientRpc))]
+        [HarmonyPostfix]
+        private static void PlayerConnection(ref StartOfRound __instance)
+        {
+            foreach (PlayerControllerB player in __instance.allPlayerScripts)
+            {
+                if (player.isPlayerControlled && player.GetComponent<PlayerAFBehaviour>() == null)
+                {
+                    player.gameObject.AddComponent<PlayerAFBehaviour>();
                 }
             }
         }
@@ -135,8 +149,6 @@ namespace AddonFusion.Patches
 
         private static void LoadItems(StartOfRound startOfRound)
         {
-            /*LoadEphemeralItems(startOfRound);
-            LoadAddons(startOfRound);*/
             if (!ES3.KeyExists("shipAddonFusionItemIDs", GameNetworkManager.Instance.currentSaveFileName))
             {
                 AddonFusion.mls.LogWarning("Key 'shipAddonFusionItemIDs' does not exist");

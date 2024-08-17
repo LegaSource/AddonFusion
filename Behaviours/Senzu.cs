@@ -1,5 +1,4 @@
-﻿using AddonFusion.Patches;
-using GameNetcodeStuff;
+﻿using GameNetcodeStuff;
 using System;
 using Unity.Netcode;
 using UnityEngine;
@@ -20,7 +19,8 @@ namespace AddonFusion.Behaviours
                     DeadBodyInfo deadBodyInfo = hit.transform.GetComponentInParent<DeadBodyInfo>();
                     if (deadBodyInfo?.playerScript != null)
                     {
-                        if (PlayerControllerBPatch.revivablePlayers.Contains(deadBodyInfo?.playerScript))
+                        PlayerAFBehaviour playerAFBehaviour = deadBodyInfo.playerScript.GetComponent<PlayerAFBehaviour>();
+                        if (playerAFBehaviour != null && playerAFBehaviour.isRevivable)
                         {
                             Vector3 position = deadBodyInfo.transform.position;
                             RagdollGrabbableObject ragdollGrabbableObject = deadBodyInfo.GetComponentInChildren<RagdollGrabbableObject>();
@@ -59,7 +59,8 @@ namespace AddonFusion.Behaviours
         public void RevivePlayer(ref PlayerControllerB player, Vector3 position)
         {
             int index = Array.IndexOf(StartOfRound.Instance.allPlayerScripts, player);
-            PlayerControllerBPatch.revivablePlayers.Remove(player);
+            PlayerAFBehaviour playerAFBehaviour = player.GetComponent<PlayerAFBehaviour>();
+            if (playerAFBehaviour != null) playerAFBehaviour.isRevivable = false;
             player.ResetPlayerBloodObjects(player.isPlayerDead);
             player.isClimbingLadder = false;
             player.clampLooking = false;

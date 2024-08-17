@@ -1,8 +1,9 @@
 ﻿using AddonFusion.Behaviours;
+using AddonFusion.Patches;
 using GameNetcodeStuff;
+using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
-using UnityEngine.InputSystem;
 
 namespace AddonFusion
 {
@@ -81,16 +82,94 @@ namespace AddonFusion
         }
 
         [ServerRpc(RequireOwnership = false)]
-        public void StunPlayerServerRpc(int playerId)
+        public void SetPlayerParryingServerRpc(int playerId, bool enable)
         {
-            StunPlayerClientRpc(playerId);
+            SetPlayerParryingClientRpc(playerId, enable);
         }
 
         [ClientRpc]
-        public void StunPlayerClientRpc(int playerId)
+        private void SetPlayerParryingClientRpc(int playerId, bool enable)
         {
             PlayerControllerB player = StartOfRound.Instance.allPlayerObjects[playerId].GetComponent<PlayerControllerB>();
-            Instantiate(AddonFusion.stunParticle, player.gameplayCamera.transform.position + Vector3.up * 0.1f + Vector3.forward * 0.25f, player.transform.rotation);
+            PlayerAFBehaviour playerAFBehaviour = player.GetComponent<PlayerAFBehaviour>();
+            if (player != null && playerAFBehaviour != null)
+            {
+                playerAFBehaviour.isParrying = enable;
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void ParryPlayerServerRpc(int playerId, int playerWhoHitId)
+        {
+            ParryPlayerClientRpc(playerId, playerWhoHitId);
+        }
+
+        [ClientRpc]
+        public void ParryPlayerClientRpc(int playerId, int playerWhoHitId)
+        {
+            PlayerControllerB playerWhoHit = StartOfRound.Instance.allPlayerObjects[playerWhoHitId].GetComponent<PlayerControllerB>();
+            if (playerWhoHit != GameNetworkManager.Instance.localPlayerController)
+            {
+                PlayerControllerB player = StartOfRound.Instance.allPlayerObjects[playerId].GetComponent<PlayerControllerB>();
+                PlayerControllerBPatch.AddParriedPlayer(player, playerWhoHit);
+                PlayerControllerBPatch.ParryEntity(ref player, false);
+            }
+        }
+
+        [ServerRpc(RequireOwnership = false)]
+        public void StunPlayerServerRpc(int playerId, float stunTime, bool isItemDropped, bool isPlayerImmobilized)
+        {
+            if (isItemDropped || isPlayerImmobilized) StunPlayerClientRpc(playerId, stunTime, isItemDropped, isPlayerImmobilized);
+        }
+
+        [ClientRpc]
+        public void StunPlayerClientRpc(int playerId, float stunTime, bool isItemDropped, bool isPlayerImmobilized)
+        {
+            PlayerControllerB player = StartOfRound.Instance.allPlayerObjects[playerId].GetComponent<PlayerControllerB>();
+            if (isItemDropped
+                && player.currentlyHeldObjectServer != null
+                && player.currentlyHeldObjectServer is Shovel shovel)
+            {
+                shovel.reelingUp = false;
+                if (shovel.reelingUpCoroutine != null)
+                {
+                    StopCoroutine(shovel.reelingUpCoroutine);
+                    shovel.reelingUpCoroutine = null;
+                }
+
+                if (player == GameNetworkManager.Instance.localPlayerController)
+                {
+                    player.DiscardHeldObject();
+                }
+            }
+            if (isPlayerImmobilized)
+            {
+                StartCoroutine(StunPlayer(player, stunTime));
+            }
+        }
+
+        private IEnumerator StunPlayer(PlayerControllerB player, float stunTime)
+        {
+            GameObject stunEffect = Instantiate(AddonFusion.stunParticle, player.gameplayCamera.transform.position + Vector3.up * 0.1f + player.gameplayCamera.transform.right * -0.3f, player.transform.rotation);
+            stunEffect.transform.SetParent(player.transform);
+            if (player == GameNetworkManager.Instance.localPlayerController)
+            {
+                AFUtilities.EnablePlayerActions(false);
+                player.disableLookInput = true;
+                player.inSpecialInteractAnimation = true;
+                player.snapToServerPosition = true;
+            }
+
+            yield return new WaitForSeconds(stunTime);
+
+            if (player == GameNetworkManager.Instance.localPlayerController)
+            {
+                AFUtilities.EnablePlayerActions(true);
+                player.disableLookInput = false;
+                player.inSpecialInteractAnimation = false;
+                player.snapToServerPosition = false;
+            }
+            Destroy(stunEffect);
         }
 
         [ServerRpc(RequireOwnership = false)]

@@ -7,16 +7,6 @@ namespace AddonFusion.Patches
 {
     internal class GrabbableObjectPatch
     {
-        [HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.Start))]
-        [HarmonyPostfix]
-        private static void StartPatch(ref GrabbableObject __instance)
-        {
-            if (!__instance.itemProperties.isScrap && __instance.gameObject.GetComponent<Addon>() == null)
-            {
-                __instance.gameObject.AddComponent<Addon>();
-            }
-        }
-
         [HarmonyPatch(typeof(GrabbableObject), nameof(GrabbableObject.Update))]
         [HarmonyPostfix]
         private static void DestroyEphemeralItems(ref GrabbableObject __instance)

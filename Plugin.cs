@@ -28,14 +28,13 @@ namespace AddonFusion
         public static GameObject managerPrefab = NetworkPrefabs.CreateNetworkPrefab("AddonFusionNetworkManager");
 
         public static List<CustomItem> customItems = new List<CustomItem>();
+        public static List<CutomEphemeralItem> customEphemeralItems = new List<CutomEphemeralItem>();
         public static List<CapsuleHoiPoiValue> capsuleHoiPoiValues = new List<CapsuleHoiPoiValue>();
         public static List<SaltTankValue> saltTankValues = new List<SaltTankValue>();
         public static List<ProtectiveCordValue> protectiveCordValues = new List<ProtectiveCordValue>();
         public static List<LensValue> lensValues = new List<LensValue>();
         public static List<BladeSharpenerValue> bladeSharpenerValues = new List<BladeSharpenerValue>();
         public static List<PyrethrinTankValue> pyrethrinTankValues = new List<PyrethrinTankValue>();
-
-        public static List<CutomEphemeralItem> customEphemeralItems = new List<CutomEphemeralItem>();
 
         public static GameObject stunParticle;
         public static GameObject parrySound;
@@ -55,7 +54,7 @@ namespace AddonFusion
             LoadManager();
             NetcodePatcher();
             LoadItems();
-            //LoadParticles();
+            LoadParticles();
             LoadAudios();
 
             harmony.PatchAll(typeof(GameNetworkManagerPatch));
@@ -70,6 +69,10 @@ namespace AddonFusion
             harmony.PatchAll(typeof(SprayPaintItemPatch));
             harmony.PatchAll(typeof(TetraChemicalItemPatch));
             harmony.PatchAll(typeof(EnemyAIPatch));
+            harmony.PatchAll(typeof(NutcrackerEnemyAIPatch));
+            harmony.PatchAll(typeof(MouthDogAIPatch));
+            harmony.PatchAll(typeof(ForestGiantAIPatch));
+            harmony.PatchAll(typeof(FlowermanAIPatch));
             harmony.PatchAll(typeof(StormyWeatherPatch));
         }
 

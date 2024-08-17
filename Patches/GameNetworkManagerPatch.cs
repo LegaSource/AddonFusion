@@ -1,17 +1,26 @@
 ﻿using AddonFusion.Behaviours;
 using HarmonyLib;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 
 namespace AddonFusion.Patches
 {
     internal class GameNetworkManagerPatch
     {
+        [HarmonyPatch(typeof(GameNetworkManager), "Start")]
+        [HarmonyBefore(["evaisa.lethallib"])]
+        [HarmonyPostfix]
+        private static void StartGameNetworkManager()
+        {
+            AddEnemyBehaviours();
+        }
+
         [HarmonyPatch(typeof(GameNetworkManager), "SaveItemsInShip")]
         [HarmonyPostfix]
         private static void SaveItems(ref GameNetworkManager __instance)
         {
-            GrabbableObject[] grabbableObjects = UnityEngine.Object.FindObjectsByType<GrabbableObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+            GrabbableObject[] grabbableObjects = Object.FindObjectsByType<GrabbableObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
             if (grabbableObjects == null || grabbableObjects.Length == 0)
             {
                 ES3.DeleteKey("shipAddonFusionItemIDs", __instance.currentSaveFileName);
@@ -84,6 +93,36 @@ namespace AddonFusion.Patches
                 else
                 {
                     ES3.Save("shipAddonFusionItemIDs", listAddonFusionItemIDs.ToArray(), __instance.currentSaveFileName);
+                }
+            }
+        }
+
+        public static void AddEnemyBehaviours()
+        {
+            AddPyrethrinTankBehaviour();
+        }
+
+        public static void AddPyrethrinTankBehaviour()
+        {
+            foreach (EnemyType enemyType in Resources.FindObjectsOfTypeAll<EnemyType>())
+            {
+                EnemyAFBehaviour enemyAFBehaviour = enemyType.enemyPrefab.gameObject.AddComponent<EnemyAFBehaviour>();
+                if (enemyType != null
+                    && enemyType.enemyPrefab != null
+                    && enemyType.enemyPrefab.TryGetComponent<EnemyAI>(out var enemyAI)
+                    && AddonFusion.pyrethrinTankValues.Select(e => e.EntityName).Contains(enemyType.enemyName))
+                {
+                    enemyAI.enemyBehaviourStates = new List<EnemyBehaviourState>(enemyAI.enemyBehaviourStates)
+                    {
+                        new EnemyBehaviourState
+                        {
+                            name = "PyrethrinTank"
+                        }
+                    }.ToArray();
+                    if (enemyAFBehaviour != null)
+                    {
+                        enemyAFBehaviour.pyrethrinTankBehaviourIndex = enemyAI.enemyBehaviourStates.Length - 1;
+                    }
                 }
             }
         }

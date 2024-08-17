@@ -3,7 +3,6 @@ using AddonFusion.Behaviours;
 using GameNetcodeStuff;
 using HarmonyLib;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using Unity.Netcode;
 using UnityEngine;
@@ -12,29 +11,26 @@ namespace AddonFusion.Patches
 {
     internal class PlayerControllerBPatch
     {
-        public static bool isParrying = false;
-        public static bool isParryOnCooldown = false;
-        public static EnemyAI parriedEnemy;
+        public static bool hitReturn = true;
 
-        public static List<PlayerControllerB> revivablePlayers = new List<PlayerControllerB>();
+        [HarmonyPatch(typeof(PlayerControllerB), nameof(PlayerControllerB.ConnectClientToPlayerObject))]
+        [HarmonyPostfix]
+        private static void StartPlayer(ref PlayerControllerB __instance)
+        {
+            if (__instance.isPlayerControlled && __instance.GetComponent<PlayerAFBehaviour>() == null)
+            {
+                __instance.gameObject.AddComponent<PlayerAFBehaviour>();
+            }
+        }
 
         [HarmonyPatch(typeof(PlayerControllerB), "BeginGrabObject")]
         [HarmonyPostfix]
         private static void FixVehicleParent(ref GrabbableObject ___currentlyGrabbingObject)
         {
             // Limiter le fix au véhicule au cas où le parent serait nécessaire ailleur
-            if (___currentlyGrabbingObject == null)
-            {
-                return;
-            }
-            if (___currentlyGrabbingObject.transform == null)
-            {
-                return;
-            }
-            if (___currentlyGrabbingObject.transform.parent == null)
-            {
-                return;
-            }
+            if (___currentlyGrabbingObject == null) return;
+            if (___currentlyGrabbingObject.transform == null) return;
+            if (___currentlyGrabbingObject.transform.parent == null) return;
             if (___currentlyGrabbingObject.transform.parent.GetComponent<VehicleController>() != null)
             {
                 ___currentlyGrabbingObject.transform.SetParent(null);
@@ -57,6 +53,7 @@ namespace AddonFusion.Patches
                 && !shovel.reelingUp
                 && AFUtilities.GetAddonInstalled(shovel, "Protective Cord") != null)
             {
+                shovel.previousPlayerHeldBy = player;
                 player.StartCoroutine(ParryCoroutine(shovel));
             }
         }
@@ -65,23 +62,80 @@ namespace AddonFusion.Patches
         [HarmonyPrefix]
         private static bool DamagePlayer(ref PlayerControllerB __instance)
         {
-            if (isParrying && parriedEnemy != null && __instance.currentlyHeldObjectServer != null && __instance.currentlyHeldObjectServer is Shovel)
+            return !ParryEntity(ref __instance, true);
+        }
+
+        public static void AddParriedEnemy(PlayerControllerB player, EnemyAI enemyAI)
+        {
+            PlayerAFBehaviour playerAFBehaviour = player.GetComponent<PlayerAFBehaviour>();
+            if (playerAFBehaviour != null && (string.IsNullOrEmpty(ConfigManager.cordExclusions.Value) || !ConfigManager.cordExclusions.Value.Contains(enemyAI.enemyType.enemyName)))
             {
-                ProtectiveCordValue protectiveCordValue = AddonFusion.protectiveCordValues.Where(v => v.EntityName.Equals(parriedEnemy.enemyType.enemyName)).FirstOrDefault()
-                        ?? AddonFusion.protectiveCordValues.Where(v => v.EntityName.Equals("default")).FirstOrDefault();
-                __instance.StartCoroutine(ParryCooldownCoroutine(protectiveCordValue.CooldownDuration));
-                AddonFusionNetworkManager.Instance.StunEnemyServerRpc(parriedEnemy.NetworkObject, protectiveCordValue.StunDuration, (int)__instance.playerClientId);
-                __instance.StartCoroutine(SpeedBoostCoroutine(__instance, protectiveCordValue.SpeedBoostDuration, protectiveCordValue.SpeedMultiplier / 100 + 1));
-                __instance.sprintMeter += 1f * protectiveCordValue.StaminaRegen / 100;
-                GameObject audioObject = Object.Instantiate(AddonFusion.parrySound, __instance.transform.position, Quaternion.identity);
-                AudioSource audioSource = audioObject.GetComponent<AudioSource>();
-                Object.Destroy(audioObject, audioSource.clip.length);
+                if (playerAFBehaviour.isParrying) playerAFBehaviour.parriedEnemy = enemyAI;
+                else playerAFBehaviour.parriedEnemy = null;
+            }
+        }
+
+        [HarmonyPatch(typeof(PlayerControllerB), "IHittable.Hit")]
+        [HarmonyPrefix]
+        private static bool HitPlayer(ref PlayerControllerB __instance, ref bool __result, PlayerControllerB playerWhoHit)
+        {
+            AddParriedPlayer(__instance, playerWhoHit);
+            if (ParryEntity(ref __instance, false))
+            {
+                AddonFusionNetworkManager.Instance.ParryPlayerServerRpc((int)__instance.playerClientId, (int)playerWhoHit.playerClientId);
+                __result = false;
                 return false;
+            }
+            return true;
+        }
+
+        public static void AddParriedPlayer(PlayerControllerB player, PlayerControllerB parriedPlayer)
+        {
+            PlayerAFBehaviour playerAFBehaviour = player.GetComponent<PlayerAFBehaviour>();
+            if (playerAFBehaviour != null && (string.IsNullOrEmpty(ConfigManager.cordExclusions.Value) || !ConfigManager.cordExclusions.Value.Contains("Player")))
+            {
+                if (playerAFBehaviour.isParrying) playerAFBehaviour.parriedPlayer = parriedPlayer;
+                else playerAFBehaviour.parriedPlayer = null;
+            }
+        }
+
+        public static bool ParryEntity(ref PlayerControllerB player, bool isEnemy)
+        {
+            PlayerAFBehaviour playerAFBehaviour = player.GetComponent<PlayerAFBehaviour>();
+            if (playerAFBehaviour != null
+                && playerAFBehaviour.isParrying
+                && (playerAFBehaviour.parriedEnemy != null || playerAFBehaviour.parriedPlayer != null)
+                && player.currentlyHeldObjectServer != null
+                && player.currentlyHeldObjectServer is Shovel)
+            {
+                if (player == GameNetworkManager.Instance.localPlayerController)
+                {
+                    ProtectiveCordValue protectiveCordValue;
+                    if (isEnemy) protectiveCordValue = AddonFusion.protectiveCordValues.Where(v => v.EntityName.Equals(playerAFBehaviour.parriedEnemy.enemyType.enemyName)).FirstOrDefault();
+                    else protectiveCordValue = AddonFusion.protectiveCordValues.Where(v => v.EntityName.Equals("Player")).FirstOrDefault();
+                    protectiveCordValue ??= AddonFusion.protectiveCordValues.Where(v => v.EntityName.Equals("default")).FirstOrDefault();
+
+                    player.StartCoroutine(ParryCooldownCoroutine(playerAFBehaviour, protectiveCordValue.CooldownDuration));
+                    
+                    if (isEnemy) AddonFusionNetworkManager.Instance.StunEnemyServerRpc(playerAFBehaviour.parriedEnemy.NetworkObject, protectiveCordValue.StunDuration, (int)player.playerClientId);
+                    else AddonFusionNetworkManager.Instance.StunPlayerServerRpc((int)playerAFBehaviour.parriedPlayer.playerClientId, protectiveCordValue.StunDuration, ConfigManager.canCordStunDropItem.Value, ConfigManager.canCordStunImmobilize.Value);
+
+                    player.StartCoroutine(SpeedBoostCoroutine(player, protectiveCordValue.SpeedBoostDuration, protectiveCordValue.SpeedMultiplier / 100 + 1));
+                    player.sprintMeter += 1f * protectiveCordValue.StaminaRegen / 100;
+
+                    GameObject audioObject = Object.Instantiate(AddonFusion.parrySound, player.transform.position, Quaternion.identity);
+                    AudioSource audioSource = audioObject.GetComponent<AudioSource>();
+                    Object.Destroy(audioObject, audioSource.clip.length);
+                }
+                playerAFBehaviour.parriedEnemy = null;
+                playerAFBehaviour.parriedPlayer = null;
+                return true;
             }
             else
             {
-                parriedEnemy = null;
-                return true;
+                playerAFBehaviour.parriedEnemy = null;
+                playerAFBehaviour.parriedPlayer = null;
+                return false;
             }
         }
 
@@ -97,44 +151,48 @@ namespace AddonFusion.Patches
 
         private static IEnumerator ParryCoroutine(Shovel shovel)
         {
-            if (isParryOnCooldown)
+            PlayerAFBehaviour playerAFBehaviour = GameNetworkManager.Instance.localPlayerController.GetComponent<PlayerAFBehaviour>();
+            if (playerAFBehaviour != null )
             {
-                HUDManager.Instance.DisplayTip("Information", "On cooldown!");
-            }
-            else if (!isParrying)
-            {
-                isParrying = true;
-                ReelingUpShovel(true, ref shovel);
-                yield return new WaitForSeconds(ConfigManager.cordWindowDuration.Value);
-                ReelingUpShovel(false, ref shovel);
-                yield return new WaitForSeconds(ConfigManager.cordSpamCooldown.Value);
-                isParrying = false;
+                if (playerAFBehaviour.isParryOnCooldown)
+                {
+                    HUDManager.Instance.DisplayTip("Information", "On cooldown!");
+                }
+                else if (!playerAFBehaviour.isParrying)
+                {
+                    AddonFusionNetworkManager.Instance.SetPlayerParryingServerRpc((int)GameNetworkManager.Instance.localPlayerController.playerClientId, true);
+                    ReelingUpShovel(true, ref shovel);
+                    yield return new WaitForSeconds(ConfigManager.cordWindowDuration.Value);
+                    ReelingUpShovel(false, ref shovel);
+                    yield return new WaitForSeconds(ConfigManager.cordSpamCooldown.Value);
+                    AddonFusionNetworkManager.Instance.SetPlayerParryingServerRpc((int)GameNetworkManager.Instance.localPlayerController.playerClientId, false);
+                }
             }
         }
 
         public static void ReelingUpShovel(bool enable, ref Shovel shovel)
         {
             shovel.reelingUp = enable;
-            shovel.playerHeldBy.activatingItem = enable;
-            shovel.playerHeldBy.twoHanded = enable;
-            shovel.playerHeldBy.playerBodyAnimator.SetBool("reelingUp", value: enable);
+            shovel.previousPlayerHeldBy.activatingItem = enable;
+            shovel.previousPlayerHeldBy.twoHanded = enable;
+            shovel.previousPlayerHeldBy.playerBodyAnimator.SetBool("reelingUp", value: enable);
             if (enable)
             {
                 if (shovel.reelingUpCoroutine != null)
                 {
                     shovel.StopCoroutine(shovel.reelingUpCoroutine);
                 }
-                shovel.playerHeldBy.playerBodyAnimator.ResetTrigger("shovelHit");
+                shovel.previousPlayerHeldBy.playerBodyAnimator.ResetTrigger("shovelHit");
                 shovel.shovelAudio.PlayOneShot(shovel.reelUp);
                 shovel.ReelUpSFXServerRpc();
             }
         }
 
-        private static IEnumerator ParryCooldownCoroutine(float duration)
+        private static IEnumerator ParryCooldownCoroutine(PlayerAFBehaviour playerAFBehaviour, float duration)
         {
-            isParryOnCooldown = true;
+            playerAFBehaviour.isParryOnCooldown = true;
             yield return new WaitForSeconds(duration);
-            isParryOnCooldown = false;
+            playerAFBehaviour.isParryOnCooldown = false;
         }
 
         private static IEnumerator SpeedBoostCoroutine(PlayerControllerB player, float duration, float speedMultiplier)
@@ -166,16 +224,24 @@ namespace AddonFusion.Patches
 
         private static IEnumerator ReviveCoroutine(PlayerControllerB player)
         {
-            if (!revivablePlayers.Contains(player)) revivablePlayers.Add(player);
-            float elapsedTime = 0f;
-            float checkInterval = 1f;
-            while (elapsedTime < ConfigManager.senzuReviveDuration.Value)
+            PlayerAFBehaviour playerAFBehaviour = player.GetComponent<PlayerAFBehaviour>();
+            if (playerAFBehaviour != null)
             {
-                if (!revivablePlayers.Contains(player)) yield break;
-                yield return new WaitForSeconds(checkInterval);
-                elapsedTime += checkInterval;
+                playerAFBehaviour.isRevivable = true;
+                float elapsedTime = 0f;
+                float checkInterval = 1f;
+                while (elapsedTime < ConfigManager.senzuReviveDuration.Value)
+                {
+                    if (!playerAFBehaviour.isRevivable) yield break;
+                    yield return new WaitForSeconds(checkInterval);
+                    elapsedTime += checkInterval;
+                }
+                playerAFBehaviour.isRevivable = false;
             }
-            revivablePlayers.Remove(player);
+            else
+            {
+                yield break;
+            }
         }
     }
 }

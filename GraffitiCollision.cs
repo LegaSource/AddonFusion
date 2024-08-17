@@ -18,7 +18,7 @@ namespace AddonFusion
         private void OnTriggerEnter(Collider other)
         {
             EnemyAICollisionDetect collisionDetect = other.GetComponent<EnemyAICollisionDetect>();
-            if (SprayPaintItemPatch.IsDressGirlChasing(ref collisionDetect) || SprayPaintItemPatch.IsHerobrineChasing(ref collisionDetect))
+            if (SprayPaintItemPatch.IsDressGirlChasing(ref collisionDetect) || SprayPaintItemPatch.IsKittenjiEnemyChasing(ref collisionDetect))
             {
                 BoxCollider collider = GetComponent<BoxCollider>();
                 if (collider != null && collider.name.Equals("GraffitiCollision"))

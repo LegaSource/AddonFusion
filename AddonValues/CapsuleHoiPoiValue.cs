@@ -1,5 +1,4 @@
-﻿using System;
-namespace AddonFusion.AddonValues
+﻿namespace AddonFusion.AddonValues
 {
     internal class CapsuleHoiPoiValue
     {

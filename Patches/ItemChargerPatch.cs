@@ -1,5 +1,4 @@
-﻿using AddonFusion.Behaviours;
-using HarmonyLib;
+﻿using HarmonyLib;
 using Unity.Netcode;
 
 namespace AddonFusion.Patches

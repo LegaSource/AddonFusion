@@ -1,6 +1,4 @@
-﻿using AddonFusion.Behaviours;
-
-namespace AddonFusion
+﻿namespace AddonFusion
 {
     internal class CutomEphemeralItem
     {

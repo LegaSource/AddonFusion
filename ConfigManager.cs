@@ -9,6 +9,7 @@ namespace AddonFusion
     {
         // GLOBAL
         public static ConfigEntry<bool> isEphemeralEnabled;
+        public static ConfigEntry<bool> isEphemeralDestroyEnabled;
         public static ConfigEntry<int> minEphemeralItem;
         public static ConfigEntry<int> maxEphemeralItem;
         public static ConfigEntry<int> spawnAddonPerItem;
@@ -35,7 +36,10 @@ namespace AddonFusion
         public static ConfigEntry<int> cordPrice;
         public static ConfigEntry<float> cordWindowDuration;
         public static ConfigEntry<float> cordSpamCooldown;
+        public static ConfigEntry<bool> canCordStunDropItem;
+        public static ConfigEntry<bool> canCordStunImmobilize;
         public static ConfigEntry<string> cordEntityValues;
+        public static ConfigEntry<string> cordExclusions;
         // FLASHLIGHT LENS
         public static ConfigEntry<bool> isLensEnabled;
         public static ConfigEntry<bool> isLensSpawnable;
@@ -115,10 +119,11 @@ namespace AddonFusion
         internal static void Load()
         {
             // GLOBAL
-            isEphemeralEnabled = AddonFusion.configFile.Bind<bool>("_Global_", "Enable Ephemeral Items", true, "Is the ephemeral items enabled?");
-            minEphemeralItem = AddonFusion.configFile.Bind<int>("_Global_", "Min Ephemeral Item", 40, "Minimum number of ephemeral items that will spawn in the dungeon.");
-            maxEphemeralItem = AddonFusion.configFile.Bind<int>("_Global_", "Max Ephemeral Item", 80, "Maximum number of ephemeral items that will spawn in the dungeon.");
-            spawnAddonPerItem = AddonFusion.configFile.Bind<int>("_Global_", "Spawn Addon per Item", 1, "If this option is enabled (set to -1 to disable), it limits the number of spawnable addons based on the associated item + configured value." +
+            isEphemeralEnabled = AddonFusion.configFile.Bind<bool>("_Global_", "Enable ephemeral items", true, "Is the ephemeral items enabled?");
+            isEphemeralDestroyEnabled = AddonFusion.configFile.Bind<bool>("_Global_", "Enable ephemeral destruction", true, "Are ephemeral items destroyed when the ship takes off?");
+            minEphemeralItem = AddonFusion.configFile.Bind<int>("_Global_", "Min ephemeral item", 4, "Minimum number of ephemeral items that will spawn in the dungeon.");
+            maxEphemeralItem = AddonFusion.configFile.Bind<int>("_Global_", "Max ephemeral item", 8, "Maximum number of ephemeral items that will spawn in the dungeon.");
+            spawnAddonPerItem = AddonFusion.configFile.Bind<int>("_Global_", "Spawn addon per item", 1, "If this option is enabled (set to -1 to disable), it limits the number of spawnable addons based on the associated item + configured value." +
                 "\nExample: If there is one flashlight without an addon, then one Flashlight Lens + 1 (default value) can spawn; if there are two flashlights, two Flashlight Lenses + 1 can spawn; if there are no flashlights, the number of Flashlight Lenses will equal the configured value.");
             // CAPSULE HOI-POI
             isCapsuleEnabled = AddonFusion.configFile.Bind<bool>("Capsule Hoi-Poi", "Enable", true, "Is the capsule Hoi-Poi enabled?");
@@ -146,9 +151,12 @@ namespace AddonFusion
             cordPrice = AddonFusion.configFile.Bind<int>("Protective Cord", "Price", 30, "Protective cord price");
             cordWindowDuration = AddonFusion.configFile.Bind<float>("Protective Cord", "Window duration", 0.35f, "Parrying window duration");
             cordSpamCooldown = AddonFusion.configFile.Bind<float>("Protective Cord", "Spam cooldown", 1f, "Cooldown duration per use");
-            cordEntityValues = AddonFusion.configFile.Bind<string>("Protective Cord", "Values", "default:10:1.5:5:100:10", "Values per entity, the format is EntityName:CooldownDuration:StunDuration:SpeedBoostDuration:SpeedMultiplier:StaminaRegen." +
+            canCordStunDropItem = AddonFusion.configFile.Bind<bool>("Protective Cord", "Player item drop", true, "Does the stun cause the player to drop their weapon?");
+            canCordStunImmobilize = AddonFusion.configFile.Bind<bool>("Protective Cord", "Player immobilization", true, "Does the stun immobilize the player?");
+            cordEntityValues = AddonFusion.configFile.Bind<string>("Protective Cord", "Values", "default:10:1.5:5:100:10,Player:5:4:0:0:0,Flowerman:10:5:5:100:10,MouthDog:10:2.5:5:100:10", "Values per entity, the format is EntityName:CooldownDuration:StunDuration:SpeedBoostDuration:SpeedMultiplier:StaminaRegen." +
                 "\nSpeedMultiplier: Speed multiplier percentage." +
                 "\nStaminaRegen: Stamina regen percentage.");
+            cordExclusions = AddonFusion.configFile.Bind<string>("Protective Cord", "Exclusion list", "Flowerman,MouthDog,ForestGiant", "List of creatures that will not be affected by the stun.");
             // FLASHLIGHT LENS
             isLensEnabled = AddonFusion.configFile.Bind<bool>("Flashlight Lens", "Enable", true, "Is the flashlight lens enabled?");
             isLensSpawnable = AddonFusion.configFile.Bind<bool>("Flashlight Lens", "Spawnable", true, "Is the flashlight lens spawnable?");
@@ -175,16 +183,16 @@ namespace AddonFusion
             senzuRarity = AddonFusion.configFile.Bind<int>("Senzu", "Rarity", 5, "Senzu spawn rarity");
             isSenzuPurchasable = AddonFusion.configFile.Bind<bool>("Senzu", "Purchasable", true, "Is the senzu purchasable?");
             senzuPrice = AddonFusion.configFile.Bind<int>("Senzu", "Price", 30, "Senzu price");
-            senzuReviveDuration = AddonFusion.configFile.Bind<float>("Senzu", "Revive Duration", 30f, "Duration during which a player can be revived.");
-            senzuHealthRegenDuration = AddonFusion.configFile.Bind<float>("Senzu", "Health Regen Duration", 25f, "Time required to regen the health from 0 to max, in seconds.");
-            senzuStaminaRegenDuration = AddonFusion.configFile.Bind<float>("Senzu", "Stamina Regen Duration", 35f, "Time required to regen the stamina from 0 to max, in seconds.");
+            senzuReviveDuration = AddonFusion.configFile.Bind<float>("Senzu", "Revive duration", 30f, "Duration during which a player can be revived.");
+            senzuHealthRegenDuration = AddonFusion.configFile.Bind<float>("Senzu", "Health regen duration", 25f, "Time required to regen the health from 0 to max, in seconds.");
+            senzuStaminaRegenDuration = AddonFusion.configFile.Bind<float>("Senzu", "Stamina regen duration", 35f, "Time required to regen the stamina from 0 to max, in seconds.");
             // PYRETHRIN TANK
             isPyrethrinTankEnabled = AddonFusion.configFile.Bind<bool>("Pyrethrin Tank", "Enable", true, "Is the pyrethrin tank enabled?");
             isPyrethrinTankSpawnable = AddonFusion.configFile.Bind<bool>("Pyrethrin Tank", "Spawnable", true, "Is the pyrethrin tank spawnable?");
             pyrethrinTankRarity = AddonFusion.configFile.Bind<int>("Pyrethrin Tank", "Rarity", 5, "Pyrethrin tank spawn rarity");
             isPyrethrinTankPurchasable = AddonFusion.configFile.Bind<bool>("Pyrethrin Tank", "Purchasable", false, "Is the pyrethrin tank purchasable?");
             pyrethrinTankPrice = AddonFusion.configFile.Bind<int>("Pyrethrin Tank", "Price", 30, "Pyrethrin tank price");
-            pyrethrinTankEntityValues = AddonFusion.configFile.Bind<string>("Pyrethrin Tank", "Values", "Red Locust Bees:10,Butler Bees:10,Bunker Spider:5,Hoarding bug:5,Centipede:5", "Values per entity, the format is EntityName:FleeDuration." +
+            pyrethrinTankEntityValues = AddonFusion.configFile.Bind<string>("Pyrethrin Tank", "Values", "Red Locust Bees:3,Butler Bees:5,Bunker Spider:3,Hoarding bug:3,Centipede:3", "Values per entity, the format is EntityName:FleeDuration." +
                 "\nFleeDuration: Duration for which the entity runs away from the player.");
             // REPAIR MODULE
             isRepairModuleEnabled = AddonFusion.configFile.Bind<bool>("Repair Module", "Enable", true, "Is the repair module enabled?");
@@ -192,44 +200,44 @@ namespace AddonFusion
             repairModuleRarity = AddonFusion.configFile.Bind<int>("Repair Module", "Rarity", 5, "Repair module spawn rarity");
             isRepairModulePurchasable = AddonFusion.configFile.Bind<bool>("Repair Module", "Purchasable", false, "Is the repair module purchasable?");
             repairModulePrice = AddonFusion.configFile.Bind<int>("Repair Module", "Price", 30, "Repair module price");
-            repairModuleDuration = AddonFusion.configFile.Bind<int>("Repair Module", "Repair Duration", 600, "Time required to repair the item and add its profit value.");
+            repairModuleDuration = AddonFusion.configFile.Bind<int>("Repair Module", "Repair duration", 600, "Time required to repair the item and add its profit value.");
             repairModuleProfit = AddonFusion.configFile.Bind<int>("Repair Module", "Profit", 50, "Profit percentage relative to the item's initial value.");
             // EPHEMERAL FLASHLIGHT
             isEphemeralFlashEnabled = AddonFusion.configFile.Bind<bool>("Ephemeral Flashlight", "Enable", true, "Is the ephemeral flashlight enabled?");
-            ephemeralFlashRarity = AddonFusion.configFile.Bind<int>("Ephemeral Flashlight", "Rarity", 100, "Ephemeral flashlight spawn rarity");
-            ephemeralFlashAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral Flashlight", "Addon Rarity", 50, "Chance for the ephemeral flashlight to spawn with an addon.");
-            ephemeralFlashMinUse = AddonFusion.configFile.Bind<int>("Ephemeral Flashlight", "Min Battery", 30, "Minimum battery before the ephemeral flashlight breaks (1 - 100).");
-            ephemeralFlashMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral Flashlight", "Max Battery", 60, "Maximum battery before the ephemeral flashlight breaks (1 - 100).");
+            ephemeralFlashRarity = AddonFusion.configFile.Bind<int>("Ephemeral Flashlight", "Rarity", 15, "Ephemeral flashlight spawn rarity");
+            ephemeralFlashAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral Flashlight", "Addon rarity", 20, "Chance for the ephemeral flashlight to spawn with an addon.");
+            ephemeralFlashMinUse = AddonFusion.configFile.Bind<int>("Ephemeral Flashlight", "Min battery", 10, "Minimum battery before the ephemeral flashlight breaks (1 - 100).");
+            ephemeralFlashMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral Flashlight", "Max battery", 60, "Maximum battery before the ephemeral flashlight breaks (1 - 100).");
             // EPHEMERAL SHOVEL
             isEphemeralShovelEnabled = AddonFusion.configFile.Bind<bool>("Ephemeral Shovel", "Enable", true, "Is the ephemeral shovel enabled?");
-            ephemeralShovelRarity = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Rarity", 100, "Ephemeral shovel spawn rarity");
-            ephemeralShovelAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Addon Rarity", 50, "Chance for the ephemeral shovel to spawn with an addon.");
-            ephemeralShovelMinUse = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Min Use", 6, "Minimum number of uses before the ephemeral shovel breaks.");
-            ephemeralShovelMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Max Use", 10, "Maximum number of uses before the ephemeral shovel breaks.");
+            ephemeralShovelRarity = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Rarity", 15, "Ephemeral shovel spawn rarity");
+            ephemeralShovelAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Addon rarity", 20, "Chance for the ephemeral shovel to spawn with an addon.");
+            ephemeralShovelMinUse = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Min use", 4, "Minimum number of uses before the ephemeral shovel breaks.");
+            ephemeralShovelMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Max use", 10, "Maximum number of uses before the ephemeral shovel breaks.");
             // EPHEMERAL SPRAY PAINT
             isEphemeralSprayPaintEnabled = AddonFusion.configFile.Bind<bool>("Ephemeral Spray Paint", "Enable", true, "Is the ephemeral spray paint enabled?");
-            ephemeralSprayPaintRarity = AddonFusion.configFile.Bind<int>("Ephemeral Spray Paint", "Rarity", 100, "Ephemeral spray paint spawn rarity");
-            ephemeralSprayPaintAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral Spray Paint", "Addon Rarity", 50, "Chance for the ephemeral spray paint to spawn with an addon.");
-            ephemeralSprayPaintMinUse = AddonFusion.configFile.Bind<int>("Ephemeral Spray Paint", "Min Tank", 30, "Minimum tank value before the ephemeral spray paint breaks (1 - 100).");
-            ephemeralSprayPaintMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral Spray Paint", "Max Tank", 60, "Maximum tank value before the ephemeral spray paint breaks (1 - 100).");
+            ephemeralSprayPaintRarity = AddonFusion.configFile.Bind<int>("Ephemeral Spray Paint", "Rarity", 10, "Ephemeral spray paint spawn rarity");
+            ephemeralSprayPaintAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral Spray Paint", "Addon rarity", 20, "Chance for the ephemeral spray paint to spawn with an addon.");
+            ephemeralSprayPaintMinUse = AddonFusion.configFile.Bind<int>("Ephemeral Spray Paint", "Min tank", 10, "Minimum tank value before the ephemeral spray paint breaks (1 - 100).");
+            ephemeralSprayPaintMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral Spray Paint", "Max tank", 60, "Maximum tank value before the ephemeral spray paint breaks (1 - 100).");
             // EPHEMERAL KNIFE
             isEphemeralKnifeEnabled = AddonFusion.configFile.Bind<bool>("Ephemeral Knife", "Enable", true, "Is the ephemeral knife enabled?");
-            ephemeralKnifeRarity = AddonFusion.configFile.Bind<int>("Ephemeral Knife", "Rarity", 100, "Ephemeral knife spawn rarity");
-            ephemeralKnifeAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral Knife", "Addon Rarity", 50, "Chance for the ephemeral knife to spawn with an addon.");
-            ephemeralKnifeMinUse = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Min Use", 3, "Minimum number of uses before the ephemeral knife breaks.");
-            ephemeralKnifeMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Max Use", 6, "Maximum number of uses before the ephemeral knife breaks.");
+            ephemeralKnifeRarity = AddonFusion.configFile.Bind<int>("Ephemeral Knife", "Rarity", 10, "Ephemeral knife spawn rarity");
+            ephemeralKnifeAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral Knife", "Addon rarity", 20, "Chance for the ephemeral knife to spawn with an addon.");
+            ephemeralKnifeMinUse = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Min use", 3, "Minimum number of uses before the ephemeral knife breaks.");
+            ephemeralKnifeMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral Shovel", "Max use", 6, "Maximum number of uses before the ephemeral knife breaks.");
             // EPHEMERAL WEED KILLER
             isEphemeralWeedKillerEnabled = AddonFusion.configFile.Bind<bool>("Ephemeral Weed Killer", "Enable", true, "Is the ephemeral weed killer enabled?");
-            ephemeralWeedKillerRarity = AddonFusion.configFile.Bind<int>("Ephemeral Weed Killer", "Rarity", 100, "Ephemeral weed killer spawn rarity");
-            ephemeralWeedKillerAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral Weed Killer", "Addon Rarity", 50, "Chance for the ephemeral weed killer to spawn with an addon.");
-            ephemeralWeedKillerMinUse = AddonFusion.configFile.Bind<int>("Ephemeral Weed Killer", "Min Fuel", 30, "Minimum fuel before the ephemeral weed killer breaks (1 - 100).");
-            ephemeralWeedKillerMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral Weed Killer", "Max Fuel", 60, "Maximum fuel before the ephemeral weed killer breaks (1 - 100).");
+            ephemeralWeedKillerRarity = AddonFusion.configFile.Bind<int>("Ephemeral Weed Killer", "Rarity", 10, "Ephemeral weed killer spawn rarity");
+            ephemeralWeedKillerAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral Weed Killer", "Addon rarity", 20, "Chance for the ephemeral weed killer to spawn with an addon.");
+            ephemeralWeedKillerMinUse = AddonFusion.configFile.Bind<int>("Ephemeral Weed Killer", "Min fuel", 10, "Minimum fuel before the ephemeral weed killer breaks (1 - 100).");
+            ephemeralWeedKillerMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral Weed Killer", "Max fuel", 60, "Maximum fuel before the ephemeral weed killer breaks (1 - 100).");
             // EPHEMERAL TZP-INHALANT
             isEphemeralTZPEnabled = AddonFusion.configFile.Bind<bool>("Ephemeral TZP-Inhalant", "Enable", true, "Is the ephemeral TZP-Inhalant enabled?");
-            ephemeralTZPRarity = AddonFusion.configFile.Bind<int>("Ephemeral TZP-Inhalant", "Rarity", 100, "Ephemeral TZP-Inhalant spawn rarity");
-            ephemeralTZPAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral TZP-Inhalant", "Addon Rarity", 50, "Chance for the ephemeral TZP-Inhalant to spawn with an addon.");
-            ephemeralTZPMinUse = AddonFusion.configFile.Bind<int>("Ephemeral TZP-Inhalant", "Min Fuel", 30, "Minimum fuel before the ephemeral TZP-Inhalant breaks (1 - 100).");
-            ephemeralTZPMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral TZP-Inhalant", "Max Fuel", 60, "Maximum fuel before the ephemeral TZP-Inhalant breaks (1 - 100).");
+            ephemeralTZPRarity = AddonFusion.configFile.Bind<int>("Ephemeral TZP-Inhalant", "Rarity", 10, "Ephemeral TZP-Inhalant spawn rarity");
+            ephemeralTZPAddonRarity = AddonFusion.configFile.Bind<int>("Ephemeral TZP-Inhalant", "Addon rarity", 20, "Chance for the ephemeral TZP-Inhalant to spawn with an addon.");
+            ephemeralTZPMinUse = AddonFusion.configFile.Bind<int>("Ephemeral TZP-Inhalant", "Min fuel", 10, "Minimum fuel before the ephemeral TZP-Inhalant breaks (1 - 100).");
+            ephemeralTZPMaxUse = AddonFusion.configFile.Bind<int>("Ephemeral TZP-Inhalant", "Max fuel", 60, "Maximum fuel before the ephemeral TZP-Inhalant breaks (1 - 100).");
         }
 
         internal static List<CapsuleHoiPoiValue> GetCapsuleValuesFromConfig()

@@ -14,7 +14,6 @@ namespace AddonFusion.Patches
         [HarmonyPostfix]
         private static void StartEnemy(ref EnemyAI __instance)
         {
-            __instance.gameObject.AddComponent<EnemyAFBehaviour>();
             if (__instance.enemyType != null
                 && __instance.enemyType.canBeStunned
                 && __instance.eye != null
@@ -24,17 +23,49 @@ namespace AddonFusion.Patches
             }
         }
 
+        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.Update))]
+        [HarmonyPostfix]
+        private static void UpdatePatch(ref EnemyAI __instance)
+        {
+            EnemyAFBehaviour enemyAFBehaviour = __instance.gameObject.GetComponent<EnemyAFBehaviour>();
+            if (enemyAFBehaviour != null
+                && enemyAFBehaviour.pyrethrinTankBehaviourIndex != -1
+                && __instance.currentBehaviourStateIndex == enemyAFBehaviour.pyrethrinTankBehaviourIndex
+                && enemyAFBehaviour.playerHitBy != null)
+            {
+                if (enemyAFBehaviour.isPyrethrinTankActive)
+                {
+                    __instance.ChangeOwnershipOfEnemy(enemyAFBehaviour.playerHitBy.actualClientId);
+                    enemyAFBehaviour.StopAggressiveAI(__instance);
+                }
+                else
+                {
+                    enemyAFBehaviour.PyrethrinTankBehaviour(__instance);
+                }
+            }
+        }
+
+        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.SwitchToBehaviourStateOnLocalClient))]
+        [HarmonyPrefix]
+        private static bool FixButlerBeesBehaviourState(ref EnemyAI __instance, ref int stateIndex)
+        {
+            if (__instance is ButlerBeesEnemyAI && stateIndex == -1)
+            {
+                __instance.currentBehaviourStateIndex = stateIndex;
+                __instance.currentBehaviourState = null;
+                return false;
+            }
+            return true;
+        }
+
         [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.OnCollideWithPlayer))]
         [HarmonyPostfix]
-        private static void AddParriedEnemy(ref EnemyAI __instance)
+        private static void EnemyCollideWithPlayer(ref EnemyAI __instance, Collider other)
         {
-            if (PlayerControllerBPatch.isParrying)
+            PlayerControllerB player = __instance.MeetsStandardPlayerCollisionConditions(other);
+            if (player != null)
             {
-                PlayerControllerBPatch.parriedEnemy = __instance;
-            }
-            else
-            {
-                PlayerControllerBPatch.parriedEnemy = null;
+                PlayerControllerBPatch.AddParriedEnemy(player, __instance);
             }
         }
 
@@ -103,22 +134,6 @@ namespace AddonFusion.Patches
             FlashlightItemPatch.blindableEnemies.Remove(enemy);
             yield return new WaitForSeconds(immunityDuration);
             FlashlightItemPatch.blindableEnemies.Add(enemy);
-        }
-
-        public static void PyrethrinTankBehaviour(EnemyAI enemy)
-        {
-            if (enemy.currentBehaviourStateIndex == 99)
-            {
-                PlayerControllerB player = enemy.GetComponent<EnemyAFBehaviour>()?.playerHitBy;
-                if (player != null)
-                {
-                    Transform transform = enemy.ChooseFarthestNodeFromPosition(player.transform.position, avoidLineOfSight: false);
-                    if (transform != null)
-                    {
-                        enemy.SetDestinationToPosition(transform.position);
-                    }
-                }
-            }
         }
     }
 }

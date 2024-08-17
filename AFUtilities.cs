@@ -38,5 +38,16 @@ namespace AddonFusion
             }
             return null;
         }
+
+        public static void EnablePlayerActions(bool enable)
+        {
+            string[] actionNames = { "Move", "Jump", "Crouch", "Interact", "ItemSecondaryUse", "ItemTertiaryUse", "ActivateItem", "SwitchItem", "InspectItem", "Emote1", "Emote2" };
+
+            foreach (string actionName in actionNames)
+            {
+                if (enable) IngamePlayerSettings.Instance.playerInput.actions.FindAction(actionName, false).Enable();
+                else IngamePlayerSettings.Instance.playerInput.actions.FindAction(actionName, false).Disable();
+            }
+        }
     }
 }

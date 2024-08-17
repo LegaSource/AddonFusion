@@ -14,9 +14,6 @@ namespace AddonFusion.Patches
 {
     internal class SprayPaintItemPatch
     {
-        public static List<EnemyAI> immunedEnemies = new List<EnemyAI>();
-        public static Dictionary<EnemyAI, int> enemiesChanceToSwitchHauntingPlayer = new Dictionary<EnemyAI, int>();
-
         [HarmonyPatch(typeof(SprayPaintItem), nameof(SprayPaintItem.LateUpdate))]
         [HarmonyPrefix]
         private static void DestroyEphemeralSpray(ref SprayPaintItem __instance)
@@ -33,15 +30,22 @@ namespace AddonFusion.Patches
         [HarmonyPrefix]
         private static bool HitEnemyWithWeedKiller(ref SprayPaintItem __instance)
         {
-            if (Physics.Raycast(new Ray(__instance.playerHeldBy.gameplayCamera.transform.position, __instance.playerHeldBy.gameplayCamera.transform.forward), out RaycastHit hit, 4.5f, 524288, QueryTriggerInteraction.Collide))
+            if (AFUtilities.GetAddonInstalled(__instance, "Pyrethrin Tank") != null
+                && Physics.Raycast(new Ray(__instance.playerHeldBy.gameplayCamera.transform.position, __instance.playerHeldBy.gameplayCamera.transform.forward), out RaycastHit hit, 4.5f, 524288, QueryTriggerInteraction.Collide))
             {
                 EnemyAICollisionDetect collisionDetect = hit.collider.GetComponent<EnemyAICollisionDetect>();
                 if (collisionDetect != null)
                 {
-                    Debug.Log("Collision avec " + collisionDetect.mainScript.enemyType.enemyName);
                     if (AddonFusion.pyrethrinTankValues.Select(e => e.EntityName).Contains(collisionDetect.mainScript.enemyType.enemyName))
                     {
-                        collisionDetect.mainScript.SwitchToBehaviourState(99);
+                        EnemyAFBehaviour enemyAFBehaviour = collisionDetect.mainScript.GetComponent<EnemyAFBehaviour>();
+                        if (enemyAFBehaviour != null
+                            && !enemyAFBehaviour.isPyrethrinTankActive
+                            && enemyAFBehaviour.pyrethrinTankBehaviourIndex != -1)
+                        {
+                            enemyAFBehaviour.playerHitBy = __instance.playerHeldBy;
+                            collisionDetect.mainScript.SwitchToBehaviourState(enemyAFBehaviour.pyrethrinTankBehaviourIndex);
+                        }
                     }
                 }
             }
@@ -75,7 +79,7 @@ namespace AddonFusion.Patches
                 if (Physics.Raycast(new Ray(__instance.playerHeldBy.gameplayCamera.transform.position, __instance.playerHeldBy.gameplayCamera.transform.forward), out RaycastHit hit, 10f, 524288, QueryTriggerInteraction.Collide))
                 {
                     EnemyAICollisionDetect collisionDetect = hit.collider.GetComponent<EnemyAICollisionDetect>();
-                    if (IsDressGirlChasing(ref collisionDetect) || IsHerobrineChasing(ref collisionDetect))
+                    if (IsDressGirlChasing(ref collisionDetect) || IsKittenjiEnemyChasing(ref collisionDetect))
                     {
                         ManageCollision(collisionDetect.mainScript);
                     }
@@ -95,93 +99,119 @@ namespace AddonFusion.Patches
             return false;
         }
 
-        public static bool IsHerobrineChasing(ref EnemyAICollisionDetect collisionDetect)
+        public static bool IsKittenjiEnemyChasing(ref EnemyAICollisionDetect collisionDetect)
         {
-            Type herobrineType = Type.GetType("Kittenji.HerobrineMod.HerobrineAI, HerobrineMod");
-            if (collisionDetect!= null
-                && herobrineType != null
-                && herobrineType.IsInstanceOfType(collisionDetect.mainScript)
-                && collisionDetect.mainScript.currentBehaviourStateIndex == 2
-                && GameNetworkManager.Instance.localPlayerController == (PlayerControllerB)herobrineType.GetField("hauntingPlayer").GetValue(collisionDetect.mainScript))
+            Type[] enemyTypes = { Type.GetType("Kittenji.HerobrineMod.HerobrineAI, HerobrineMod"),
+                Type.GetType("Kittenji.FootballEntity.FootballAI, FootballEntity") };
+            foreach (Type enemyType in enemyTypes)
             {
-                return true;
+                if (collisionDetect != null
+                    && enemyType != null
+                    && enemyType.IsInstanceOfType(collisionDetect.mainScript)
+                    && collisionDetect.mainScript.currentBehaviourStateIndex == 2
+                    && GameNetworkManager.Instance.localPlayerController == (PlayerControllerB)enemyType.GetField("hauntingPlayer").GetValue(collisionDetect.mainScript))
+                {
+                    return true;
+                }
             }
             return false;
         }
 
         public static void ManageCollision(EnemyAI enemy)
         {
-            if (!immunedEnemies.Contains(enemy))
+            EnemyAFBehaviour enemyAFBehaviour = enemy.GetComponent<EnemyAFBehaviour>();
+            if (enemyAFBehaviour != null && !enemyAFBehaviour.isSaltImmuned)
             {
-                if (!enemiesChanceToSwitchHauntingPlayer.Any(e => e.Key.Equals(enemy)))
-                {
-                    SaltTankValue saltTankValue = AddonFusion.saltTankValues.Where(v => v.EntityName.Equals(enemy.enemyType.enemyName)).FirstOrDefault()
-                        ?? AddonFusion.saltTankValues.Where(v => v.EntityName.Equals("default")).FirstOrDefault();
-                    enemiesChanceToSwitchHauntingPlayer.Add(enemy, saltTankValue.BaseChance);
-                }
-                enemy.StartCoroutine(ManageCollisionCoroutine(enemy));
+                SaltTankValue saltTankValue = AddonFusion.saltTankValues.Where(v => v.EntityName.Equals(enemy.enemyType.enemyName)).FirstOrDefault()
+                    ?? AddonFusion.saltTankValues.Where(v => v.EntityName.Equals("default")).FirstOrDefault();
+                enemyAFBehaviour.chanceToSwitchHauntingPlayer = saltTankValue.BaseChance;
+                enemy.StartCoroutine(ManageCollisionCoroutine(enemy, enemyAFBehaviour));
             }
         }
 
-        public static IEnumerator ManageCollisionCoroutine(EnemyAI enemy)
+        public static IEnumerator ManageCollisionCoroutine(EnemyAI enemy, EnemyAFBehaviour enemyAFBehaviour)
         {
             bool stopChasing = false;
-            Type herobrineType = Type.GetType("Kittenji.HerobrineMod.HerobrineAI, HerobrineMod");
-            SaltTankValue saltTankValue = AddonFusion.saltTankValues.Where(v => v.EntityName.Equals(enemy.enemyType.enemyName)).FirstOrDefault()
-                ?? AddonFusion.saltTankValues.Where(v => v.EntityName.Equals("default")).FirstOrDefault();
-            immunedEnemies.Add(enemy);
+            Type enemyType = enemy.GetType();
+            SaltTankValue saltTankValue = AddonFusion.saltTankValues.FirstOrDefault(v => v.EntityName.Equals(enemy.enemyType.enemyName))
+                ?? AddonFusion.saltTankValues.FirstOrDefault(v => v.EntityName.Equals("default"));
 
-            if (herobrineType != null && herobrineType.IsInstanceOfType(enemy))
-            {
-                herobrineType.GetMethod("SetEnemyVisible").Invoke(enemy, [false]);
-            }
-            else
-            {
-                enemy.EnableEnemyMesh(false, true);
-            }
+            enemyAFBehaviour.isSaltImmuned = true;
 
-            KeyValuePair<EnemyAI, int> enemyChance = enemiesChanceToSwitchHauntingPlayer.FirstOrDefault(e => e.Key.Equals(enemy));
-            if (new System.Random().Next(1, 100) <= enemyChance.Value)
+            Action<bool> setEnemyVisibility = CreateVisibilitySetter(enemyType, enemy);
+            setEnemyVisibility?.Invoke(false);
+
+            if (new System.Random().Next(1, 100) <= enemyAFBehaviour.chanceToSwitchHauntingPlayer)
             {
                 stopChasing = true;
-                if (enemiesChanceToSwitchHauntingPlayer.ContainsKey(enemyChance.Key))
-                {
-                    enemiesChanceToSwitchHauntingPlayer[enemyChance.Key] = saltTankValue.BaseChance;
-                }
+                enemyAFBehaviour.chanceToSwitchHauntingPlayer = saltTankValue.BaseChance;
 
-                if (herobrineType != null && herobrineType.IsInstanceOfType(enemy))
-                {
-                    herobrineType.GetMethod("SwitchState", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(enemy, [1]);
-                    if (UnityEngine.Random.Range(0, 100) < 50)
-                    {
-                        herobrineType.GetMethod("RequestNewTargetServerRpc", BindingFlags.NonPublic | BindingFlags.Instance).Invoke(enemy, null);
-                    }
-                }
-                else if (enemy is DressGirlAI girl)
-                {
-                    girl.StopChasing();
-                    girl.ChooseNewHauntingPlayerClientRpc();
-                }
+                Action switchStateAndRequestNewTarget = CreateStateSwitcher(enemyType, enemy);
+                switchStateAndRequestNewTarget?.Invoke();
             }
 
             yield return new WaitForSeconds(0.25f);
 
-            immunedEnemies.Remove(enemy);
+            enemyAFBehaviour.isSaltImmuned = false;
             if (!stopChasing)
             {
-                if (enemiesChanceToSwitchHauntingPlayer.ContainsKey(enemyChance.Key))
-                {
-                    enemiesChanceToSwitchHauntingPlayer[enemyChance.Key] += saltTankValue.AdditionalChance;
-                }
-                if (herobrineType != null && herobrineType.IsInstanceOfType(enemy))
-                {
-                    herobrineType.GetMethod("SetEnemyVisible").Invoke(enemy, [true]);
-                }
-                else
-                {
-                    enemy.EnableEnemyMesh(true, true);
-                }
+                enemyAFBehaviour.chanceToSwitchHauntingPlayer += saltTankValue.AdditionalChance;
+                setEnemyVisibility?.Invoke(true);
             }
+        }
+
+        private static Action<bool> CreateVisibilitySetter(Type enemyType, EnemyAI enemy)
+        {
+            if (enemyType == null) return null;
+
+            MethodInfo setVisibilityMethod = null;
+            if (enemyType.Name.Equals("HerobrineAI") || enemyType.Name.Equals("FootballAI"))
+            {
+                setVisibilityMethod = enemyType.GetMethod("SetEnemyVisible");
+            }
+
+            if (setVisibilityMethod != null)
+            {
+                return (isVisible) => setVisibilityMethod.Invoke(enemy, [isVisible]);
+            }
+            else
+            {
+                return (isVisible) => enemy.EnableEnemyMesh(isVisible, true);
+            }
+        }
+
+        private static Action CreateStateSwitcher(Type enemyType, EnemyAI enemy)
+        {
+            if (enemyType == null) return null;
+
+            MethodInfo switchStateMethod = null;
+            MethodInfo requestNewTargetMethod = null;
+            if (enemyType.Name.Equals("HerobrineAI") || enemyType.Name.Equals("FootballAI"))
+            {
+                switchStateMethod = enemyType.GetMethod("SwitchState", BindingFlags.NonPublic | BindingFlags.Instance);
+                requestNewTargetMethod = enemyType.GetMethod("RequestNewTargetServerRpc", BindingFlags.NonPublic | BindingFlags.Instance);
+            }
+
+            if (switchStateMethod != null)
+            {
+                return () =>
+                {
+                    switchStateMethod.Invoke(enemy, [1]);
+                    if (UnityEngine.Random.Range(0, 100) < 50 && requestNewTargetMethod != null)
+                    {
+                        requestNewTargetMethod.Invoke(enemy, null);
+                    }
+                };
+            }
+            else if (enemy is DressGirlAI girl)
+            {
+                return () =>
+                {
+                    girl.StopChasing();
+                    girl.ChooseNewHauntingPlayerClientRpc();
+                };
+            }
+            return null;
         }
     }
 }
