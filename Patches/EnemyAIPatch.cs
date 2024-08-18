@@ -14,12 +14,24 @@ namespace AddonFusion.Patches
         [HarmonyPostfix]
         private static void StartEnemy(ref EnemyAI __instance)
         {
-            if (__instance.enemyType != null
-                && __instance.enemyType.canBeStunned
-                && __instance.eye != null
-                && (string.IsNullOrEmpty(ConfigManager.lensExclusions.Value) || !ConfigManager.lensExclusions.Value.Contains(__instance.enemyType.enemyName)))
+            AddBlindableEnemy(__instance);
+        }
+
+        [HarmonyPatch(typeof(MaskedPlayerEnemy), nameof(MaskedPlayerEnemy.Start))]
+        [HarmonyPostfix]
+        private static void StartMaskedEnemy(ref MaskedPlayerEnemy __instance)
+        {
+            AddBlindableEnemy(__instance);
+        }
+
+        private static void AddBlindableEnemy(EnemyAI enemyAI)
+        {
+            if (enemyAI.enemyType != null
+                && enemyAI.enemyType.canBeStunned
+                && enemyAI.eye != null
+                && (string.IsNullOrEmpty(ConfigManager.lensExclusions.Value) || !ConfigManager.lensExclusions.Value.Contains(enemyAI.enemyType.enemyName)))
             {
-                FlashlightItemPatch.blindableEnemies.Add(__instance);
+                FlashlightItemPatch.blindableEnemies.Add(enemyAI);
             }
         }
 

@@ -18,7 +18,7 @@ namespace AddonFusion
     {
         private const string modGUID = "Lega.AddonFusion";
         private const string modName = "Addon Fusion";
-        private const string modVersion = "1.0.5";
+        private const string modVersion = "1.0.8";
 
         private readonly Harmony harmony = new Harmony(modGUID);
         private readonly static AssetBundle bundle = AssetBundle.LoadFromFile(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "addonfusion"));
@@ -109,8 +109,8 @@ namespace AddonFusion
                 new CustomItem(ConfigManager.isLensEnabled.Value, typeof(FlashlightLens), bundle.LoadAsset<Item>("Assets/Lens/FlashlightLensItem.asset"), ConfigManager.isLensSpawnable.Value, ConfigManager.lensRarity.Value, ConfigManager.isLensPurchasable.Value, "A lens that optimises the power of the light\n\n", ConfigManager.lensPrice.Value),
                 new CustomItem(ConfigManager.isSharpenerEnabled.Value, typeof(BladeSharpener), bundle.LoadAsset<Item>("Assets/BladeSharpener/BladeSharpenerItem.asset"), ConfigManager.isSharpenerSpawnable.Value, ConfigManager.sharpenerRarity.Value, ConfigManager.isSharpenerPurchasable.Value, "A blade sharpener to use with the knife, deal critical damage\n\n", ConfigManager.sharpenerPrice.Value),
                 new CustomItem(ConfigManager.isSenzuEnabled.Value, typeof(Senzu), bundle.LoadAsset<Item>("Assets/Senzu/SenzuItem.asset"), ConfigManager.isSenzuSpawnable.Value, ConfigManager.senzuRarity.Value, ConfigManager.isSenzuPurchasable.Value, "This magic bean was grown by Karin and has healing properties\n\n", ConfigManager.senzuPrice.Value),
-                new CustomItem(ConfigManager.isPyrethrinTankEnabled.Value, typeof(PyrethrinTank), bundle.LoadAsset<Item>("Assets/PyrethrinTank/PyrethrinTankItem.asset"), ConfigManager.isPyrethrinTankSpawnable.Value, ConfigManager.pyrethrinTankRarity.Value, ConfigManager.isPyrethrinTankPurchasable.Value, "\n\n", ConfigManager.pyrethrinTankPrice.Value),
-                new CustomItem(ConfigManager.isRepairModuleEnabled.Value, typeof(RepairModule), bundle.LoadAsset<Item>("Assets/RepairModule/RepairModuleItem.asset"), ConfigManager.isRepairModuleSpawnable.Value, ConfigManager.repairModuleRarity.Value, ConfigManager.isRepairModulePurchasable.Value, "\n\n", ConfigManager.repairModulePrice.Value)
+                new CustomItem(ConfigManager.isPyrethrinTankEnabled.Value, typeof(PyrethrinTank), bundle.LoadAsset<Item>("Assets/PyrethrinTank/PyrethrinTankItem.asset"), ConfigManager.isPyrethrinTankSpawnable.Value, ConfigManager.pyrethrinTankRarity.Value, ConfigManager.isPyrethrinTankPurchasable.Value, "A liquid tank to use with the weed killer, repels insects\n\n", ConfigManager.pyrethrinTankPrice.Value),
+                new CustomItem(ConfigManager.isRepairModuleEnabled.Value, typeof(RepairModule), bundle.LoadAsset<Item>("Assets/RepairModule/RepairModuleItem.asset"), ConfigManager.isRepairModuleSpawnable.Value, ConfigManager.repairModuleRarity.Value, ConfigManager.isRepairModulePurchasable.Value, "A repair module to use with the capsule Hoi-Poi, restores the scraps and their value\n\n", ConfigManager.repairModulePrice.Value)
             };
 
             foreach (CustomItem customItem in customItems)

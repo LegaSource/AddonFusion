@@ -7,6 +7,19 @@ namespace AddonFusion
         public bool hasAddon = false;
         public string addonName;
         public string toolTip;
+        // FLASHLIGHT
+        public bool isFlashing;
+        public float maxSpotAngle;
+
+        public void SetSpecificFields()
+        {
+            GrabbableObject grabbableObject = GetComponent<GrabbableObject>();
+            if (grabbableObject is FlashlightItem flashlightItem)
+            {
+                isFlashing = false;
+                maxSpotAngle = flashlightItem.flashlightBulb.spotAngle;
+            }
+        }
 
         public void RemoveAddon()
         {

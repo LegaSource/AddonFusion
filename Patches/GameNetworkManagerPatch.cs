@@ -9,7 +9,6 @@ namespace AddonFusion.Patches
     internal class GameNetworkManagerPatch
     {
         [HarmonyPatch(typeof(GameNetworkManager), "Start")]
-        [HarmonyBefore(["evaisa.lethallib"])]
         [HarmonyPostfix]
         private static void StartGameNetworkManager()
         {
@@ -106,12 +105,12 @@ namespace AddonFusion.Patches
         {
             foreach (EnemyType enemyType in Resources.FindObjectsOfTypeAll<EnemyType>())
             {
-                EnemyAFBehaviour enemyAFBehaviour = enemyType.enemyPrefab.gameObject.AddComponent<EnemyAFBehaviour>();
                 if (enemyType != null
                     && enemyType.enemyPrefab != null
                     && enemyType.enemyPrefab.TryGetComponent<EnemyAI>(out var enemyAI)
                     && AddonFusion.pyrethrinTankValues.Select(e => e.EntityName).Contains(enemyType.enemyName))
                 {
+                    EnemyAFBehaviour enemyAFBehaviour = enemyType.enemyPrefab.gameObject.AddComponent<EnemyAFBehaviour>();
                     enemyAI.enemyBehaviourStates = new List<EnemyBehaviourState>(enemyAI.enemyBehaviourStates)
                     {
                         new EnemyBehaviourState

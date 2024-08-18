@@ -42,6 +42,7 @@ namespace AddonFusion.Behaviours
                         addon.hasAddon = true;
                         addon.addonName = itemProperties.itemName;
                         addon.toolTip = ToolTip;
+                        addon.SetSpecificFields();
                         DestroyObjectInHand(playerHeldBy);
                     }
                     else if (IsOwner)

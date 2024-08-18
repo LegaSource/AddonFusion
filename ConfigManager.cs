@@ -183,7 +183,7 @@ namespace AddonFusion
             senzuRarity = AddonFusion.configFile.Bind<int>("Senzu", "Rarity", 5, "Senzu spawn rarity");
             isSenzuPurchasable = AddonFusion.configFile.Bind<bool>("Senzu", "Purchasable", true, "Is the senzu purchasable?");
             senzuPrice = AddonFusion.configFile.Bind<int>("Senzu", "Price", 30, "Senzu price");
-            senzuReviveDuration = AddonFusion.configFile.Bind<float>("Senzu", "Revive duration", 30f, "Duration during which a player can be revived.");
+            senzuReviveDuration = AddonFusion.configFile.Bind<float>("Senzu", "Revive duration", 60f, "Duration during which a player can be revived.");
             senzuHealthRegenDuration = AddonFusion.configFile.Bind<float>("Senzu", "Health regen duration", 25f, "Time required to regen the health from 0 to max, in seconds.");
             senzuStaminaRegenDuration = AddonFusion.configFile.Bind<float>("Senzu", "Stamina regen duration", 35f, "Time required to regen the stamina from 0 to max, in seconds.");
             // PYRETHRIN TANK
