@@ -12,7 +12,6 @@ namespace AddonFusion
         public static ConfigEntry<bool> isEphemeralDestroyEnabled;
         public static ConfigEntry<int> minEphemeralItem;
         public static ConfigEntry<int> maxEphemeralItem;
-        public static ConfigEntry<int> spawnAddonPerItem;
         // CAPSULE HOI-POI
         public static ConfigEntry<bool> isCapsuleEnabled;
         public static ConfigEntry<bool> isCapsuleSpawnable;
@@ -21,6 +20,7 @@ namespace AddonFusion
         public static ConfigEntry<int> capsulePrice;
         public static ConfigEntry<bool> isCapsuleCharge;
         public static ConfigEntry<string> capsuleItemValues;
+        public static ConfigEntry<int> maxCapsule;
         // SALT TANK
         public static ConfigEntry<bool> isSaltTankEnabled;
         public static ConfigEntry<bool> isSaltTankSpawnable;
@@ -28,6 +28,7 @@ namespace AddonFusion
         public static ConfigEntry<bool> isSaltTankPurchasable;
         public static ConfigEntry<int> saltTankPrice;
         public static ConfigEntry<string> saltTankEntityValues;
+        public static ConfigEntry<int> saltTankSpawnPerItem;
         // PROTECTIVE CORD
         public static ConfigEntry<bool> isCordEnabled;
         public static ConfigEntry<bool> isCordSpawnable;
@@ -40,6 +41,7 @@ namespace AddonFusion
         public static ConfigEntry<bool> canCordStunImmobilize;
         public static ConfigEntry<string> cordEntityValues;
         public static ConfigEntry<string> cordExclusions;
+        public static ConfigEntry<int> cordSpawnPerItem;
         // FLASHLIGHT LENS
         public static ConfigEntry<bool> isLensEnabled;
         public static ConfigEntry<bool> isLensSpawnable;
@@ -48,6 +50,7 @@ namespace AddonFusion
         public static ConfigEntry<int> lensPrice;
         public static ConfigEntry<string> lensEntityValues;
         public static ConfigEntry<string> lensExclusions;
+        public static ConfigEntry<int> lensSpawnPerItem;
         // BLADE SHARPENER
         public static ConfigEntry<bool> isSharpenerEnabled;
         public static ConfigEntry<bool> isSharpenerSpawnable;
@@ -55,6 +58,7 @@ namespace AddonFusion
         public static ConfigEntry<bool> isSharpenerPurchasable;
         public static ConfigEntry<int> sharpenerPrice;
         public static ConfigEntry<string> sharpenerEntityValues;
+        public static ConfigEntry<int> sharpenerSpawnPerItem;
         // SENZU
         public static ConfigEntry<bool> isSenzuEnabled;
         public static ConfigEntry<bool> isSenzuSpawnable;
@@ -64,6 +68,7 @@ namespace AddonFusion
         public static ConfigEntry<float> senzuReviveDuration;
         public static ConfigEntry<float> senzuHealthRegenDuration;
         public static ConfigEntry<float> senzuStaminaRegenDuration;
+        public static ConfigEntry<int> senzuSpawnPerItem;
         // PYRETHRIN TANK
         public static ConfigEntry<bool> isPyrethrinTankEnabled;
         public static ConfigEntry<bool> isPyrethrinTankSpawnable;
@@ -71,6 +76,7 @@ namespace AddonFusion
         public static ConfigEntry<bool> isPyrethrinTankPurchasable;
         public static ConfigEntry<int> pyrethrinTankPrice;
         public static ConfigEntry<string> pyrethrinTankEntityValues;
+        public static ConfigEntry<int> pyrethrinTankSpawnPerItem;
         // REPAIR MODULE
         public static ConfigEntry<bool> isRepairModuleEnabled;
         public static ConfigEntry<bool> isRepairModuleSpawnable;
@@ -79,6 +85,7 @@ namespace AddonFusion
         public static ConfigEntry<int> repairModulePrice;
         public static ConfigEntry<int> repairModuleDuration;
         public static ConfigEntry<int> repairModuleProfit;
+        public static ConfigEntry<int> repairModuleSpawnPerItem;
         // EPHEMERAL FLASHLIGHT
         public static ConfigEntry<bool> isEphemeralFlashEnabled;
         public static ConfigEntry<int> ephemeralFlashRarity;
@@ -123,8 +130,6 @@ namespace AddonFusion
             isEphemeralDestroyEnabled = AddonFusion.configFile.Bind<bool>("_Global_", "Enable ephemeral destruction", true, "Are ephemeral items destroyed when the ship takes off?");
             minEphemeralItem = AddonFusion.configFile.Bind<int>("_Global_", "Min ephemeral item", 4, "Minimum number of ephemeral items that will spawn in the dungeon.");
             maxEphemeralItem = AddonFusion.configFile.Bind<int>("_Global_", "Max ephemeral item", 8, "Maximum number of ephemeral items that will spawn in the dungeon.");
-            spawnAddonPerItem = AddonFusion.configFile.Bind<int>("_Global_", "Spawn addon per item", 1, "If this option is enabled (set to -1 to disable), it limits the number of spawnable addons based on the associated item + configured value." +
-                "\nExample: If there is one flashlight without an addon, then one Flashlight Lens + 1 (default value) can spawn; if there are two flashlights, two Flashlight Lenses + 1 can spawn; if there are no flashlights, the number of Flashlight Lenses will equal the configured value.");
             // CAPSULE HOI-POI
             isCapsuleEnabled = AddonFusion.configFile.Bind<bool>("Capsule Hoi-Poi", "Enable", true, "Is the capsule Hoi-Poi enabled?");
             isCapsuleSpawnable = AddonFusion.configFile.Bind<bool>("Capsule Hoi-Poi", "Spawnable", false, "Is the capsule Hoi-Poi spawnable?");
@@ -134,6 +139,7 @@ namespace AddonFusion
             isCapsuleCharge = AddonFusion.configFile.Bind<bool>("Capsule Hoi-Poi", "Charge", true, "Can the capsule Hoi-Poi charge items?");
             capsuleItemValues = AddonFusion.configFile.Bind<string>("Capsule Hoi-Poi", "Values", "default:600", "Values per item, the format is ItemName:ChargeDuration." +
                 "\nChargeDuration: Time required to charge the item from empty to full capacity when it's in the capsule, in seconds.");
+            maxCapsule = AddonFusion.configFile.Bind<int>("Capsule Hoi-Poi", "Max spawn", 2, "Max capsules to spawn");
             // SALT TANK
             isSaltTankEnabled = AddonFusion.configFile.Bind<bool>("Salt Tank", "Enable", true, "Is the salt tank enabled?");
             isSaltTankSpawnable = AddonFusion.configFile.Bind<bool>("Salt Tank", "Spawnable", true, "Is the salt tank spawnable?");
@@ -143,6 +149,11 @@ namespace AddonFusion
             saltTankEntityValues = AddonFusion.configFile.Bind<string>("Salt Tank", "Values", "default:20:10", "Values per entity, the format is EntityName:BaseChance:AdditionalChance." +
                 "\nBaseChance: Base chance for the entity to stop chasing when hit by a salted graffiti." +
                 "\nAdditionalChance: Additional chance for the entity to stop chasing when hit by a salted graffiti.");
+            saltTankSpawnPerItem = AddonFusion.configFile.Bind<int>("Salt Tank", "Spawn addon per item", 1, "If this option is enabled, it limits the number of spawnable addons based on the associated item + configured value." +
+                "\nIf there is :" +
+                "\n- 1 spray paint without an addon -> 1 salt tank + 1 (default value) can spawn" +
+                "\n- 2 sprays -> 2 salt tank + 1 (default value) can spawn" +
+                "\n- 0 sprays -> 1 (default value) salt tank can spawn");
             // PROTECTIVE CORD
             isCordEnabled = AddonFusion.configFile.Bind<bool>("Protective Cord", "Enable", true, "Is the protective cord enabled?");
             isCordSpawnable = AddonFusion.configFile.Bind<bool>("Protective Cord", "Spawnable", true, "Is the protective cord spawnable?");
@@ -157,6 +168,11 @@ namespace AddonFusion
                 "\nSpeedMultiplier: Speed multiplier percentage." +
                 "\nStaminaRegen: Stamina regen percentage.");
             cordExclusions = AddonFusion.configFile.Bind<string>("Protective Cord", "Exclusion list", "Flowerman,MouthDog,ForestGiant", "List of creatures that will not be affected by the stun.");
+            cordSpawnPerItem = AddonFusion.configFile.Bind<int>("Protective Cord", "Spawn addon per item", 1, "If this option is enabled, it limits the number of spawnable addons based on the associated item + configured value." +
+                "\nIf there is :" +
+                "\n- 1 shovel without an addon -> 1 protective cord + 1 (default value) can spawn" +
+                "\n- 2 shovels -> 2 protective cord + 1 (default value) can spawn" +
+                "\n- 0 shovels -> 1 (default value) protective cord can spawn");
             // FLASHLIGHT LENS
             isLensEnabled = AddonFusion.configFile.Bind<bool>("Flashlight Lens", "Enable", true, "Is the flashlight lens enabled?");
             isLensSpawnable = AddonFusion.configFile.Bind<bool>("Flashlight Lens", "Spawnable", true, "Is the flashlight lens spawnable?");
@@ -168,6 +184,11 @@ namespace AddonFusion
                 "\nLightAngle: Angle of the light in relation to the enemy's eyes - increasing this value makes aiming easier." +
                 "\nEntityAngle: Angle of the enemy in relation to the flashlight - increasing this value makes blinding from an angle easier.");
             lensExclusions = AddonFusion.configFile.Bind<string>("Flashlight Lens", "Exclusion list", "MouthDog", "List of creatures that will not be affected by the stun.");
+            lensSpawnPerItem = AddonFusion.configFile.Bind<int>("Flashlight Lens", "Spawn addon per item", 1, "If this option is enabled, it limits the number of spawnable addons based on the associated item + configured value." +
+                "\nIf there is :" +
+                "\n- 1 flashlight without an addon -> 1 flashlight lens + 1 (default value) can spawn" +
+                "\n- 2 flashlights -> 2 flashlight lens + 1 (default value) can spawn" +
+                "\n- 0 flashlights -> 1 (default value) flashlight lens can spawn");
             // BLADE SHARPENER
             isSharpenerEnabled = AddonFusion.configFile.Bind<bool>("Blade Sharpener", "Enable", true, "Is the blade sharpener enabled?");
             isSharpenerSpawnable = AddonFusion.configFile.Bind<bool>("Blade Sharpener", "Spawnable", true, "Is the blade sharpener spawnable?");
@@ -177,6 +198,11 @@ namespace AddonFusion
             sharpenerEntityValues = AddonFusion.configFile.Bind<string>("Blade Sharpener", "Values", "default:15:10", "Values per entity, the format is EntityName:CriticalSuccessChance:CriticalFailChance." +
                 "\nCriticalSuccessChance: Chance for the player to score a critical hit and kill the enemy in one strike." +
                 "\nCriticalFailChance: Chance for the player to perform a critical failure, causing the player's weapon to drop on the ground without dealing damage.");
+            sharpenerSpawnPerItem = AddonFusion.configFile.Bind<int>("Blade Sharpener", "Spawn addon per item", 1, "If this option is enabled, it limits the number of spawnable addons based on the associated item + configured value." +
+                "\nIf there is :" +
+                "\n- 1 knife without an addon -> 1 blade sharpener + 1 (default value) can spawn" +
+                "\n- 2 knives -> 2 blade sharpener + 1 (default value) can spawn" +
+                "\n- 0 knives -> 1 (default value) blade sharpener can spawn");
             // SENZU
             isSenzuEnabled = AddonFusion.configFile.Bind<bool>("Senzu", "Enable", true, "Is the senzu enabled?");
             isSenzuSpawnable = AddonFusion.configFile.Bind<bool>("Senzu", "Spawnable", false, "Is the senzu spawnable?");
@@ -186,6 +212,11 @@ namespace AddonFusion
             senzuReviveDuration = AddonFusion.configFile.Bind<float>("Senzu", "Revive duration", 60f, "Duration during which a player can be revived.");
             senzuHealthRegenDuration = AddonFusion.configFile.Bind<float>("Senzu", "Health regen duration", 25f, "Time required to regen the health from 0 to max, in seconds.");
             senzuStaminaRegenDuration = AddonFusion.configFile.Bind<float>("Senzu", "Stamina regen duration", 35f, "Time required to regen the stamina from 0 to max, in seconds.");
+            senzuSpawnPerItem = AddonFusion.configFile.Bind<int>("Senzu", "Spawn addon per item", 1, "If this option is enabled, it limits the number of spawnable addons based on the associated item + configured value." +
+                "\nIf there is :" +
+                "\n- 1 TZP chemical an addon -> 1 senzu + 1 (default value) can spawn" +
+                "\n- 2 TZP -> 2 senzu + 1 (default value) can spawn" +
+                "\n- 0 TZP -> 1 (default value) senzu can spawn");
             // PYRETHRIN TANK
             isPyrethrinTankEnabled = AddonFusion.configFile.Bind<bool>("Pyrethrin Tank", "Enable", true, "Is the pyrethrin tank enabled?");
             isPyrethrinTankSpawnable = AddonFusion.configFile.Bind<bool>("Pyrethrin Tank", "Spawnable", true, "Is the pyrethrin tank spawnable?");
@@ -194,6 +225,11 @@ namespace AddonFusion
             pyrethrinTankPrice = AddonFusion.configFile.Bind<int>("Pyrethrin Tank", "Price", 30, "Pyrethrin tank price");
             pyrethrinTankEntityValues = AddonFusion.configFile.Bind<string>("Pyrethrin Tank", "Values", "Red Locust Bees:3,Butler Bees:5,Bunker Spider:3,Hoarding bug:3,Centipede:3", "Values per entity, the format is EntityName:FleeDuration." +
                 "\nFleeDuration: Duration for which the entity runs away from the player.");
+            pyrethrinTankSpawnPerItem = AddonFusion.configFile.Bind<int>("Pyrethrin Tank", "Spawn addon per item", 1, "If this option is enabled, it limits the number of spawnable addons based on the associated item + configured value." +
+                "\nIf there is :" +
+                "\n- 1 weedkiller an addon -> 1 pyrethrin tank + 1 (default value) can spawn" +
+                "\n- 2 weedkillers -> 2 pyrethrin tank + 1 (default value) can spawn" +
+                "\n- 0 weedkillers -> 1 (default value) pyrethrin tank can spawn");
             // REPAIR MODULE
             isRepairModuleEnabled = AddonFusion.configFile.Bind<bool>("Repair Module", "Enable", true, "Is the repair module enabled?");
             isRepairModuleSpawnable = AddonFusion.configFile.Bind<bool>("Repair Module", "Spawnable", true, "Is the repair module spawnable?");
@@ -202,6 +238,11 @@ namespace AddonFusion
             repairModulePrice = AddonFusion.configFile.Bind<int>("Repair Module", "Price", 30, "Repair module price");
             repairModuleDuration = AddonFusion.configFile.Bind<int>("Repair Module", "Repair duration", 600, "Time required to repair the item and add its profit value.");
             repairModuleProfit = AddonFusion.configFile.Bind<int>("Repair Module", "Profit", 50, "Profit percentage relative to the item's initial value.");
+            repairModuleSpawnPerItem = AddonFusion.configFile.Bind<int>("Repair Module", "Spawn addon per item", 1, "If this option is enabled, it limits the number of spawnable addons based on the associated item + configured value." +
+                "\nIf there is :" +
+                "\n- 1 capsule Hoi-Poi an addon -> 1 repair module + 1 (default value) can spawn" +
+                "\n- 2 capsules -> 2 repair module + 1 (default value) can spawn" +
+                "\n- 0 capsules -> 1 (default value) repair module can spawn");
             // EPHEMERAL FLASHLIGHT
             isEphemeralFlashEnabled = AddonFusion.configFile.Bind<bool>("Ephemeral Flashlight", "Enable", true, "Is the ephemeral flashlight enabled?");
             ephemeralFlashRarity = AddonFusion.configFile.Bind<int>("Ephemeral Flashlight", "Rarity", 15, "Ephemeral flashlight spawn rarity");

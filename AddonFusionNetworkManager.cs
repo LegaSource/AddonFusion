@@ -276,11 +276,10 @@ namespace AddonFusion
                 }
                 if (grabbableObject.gameObject.GetComponentInChildren<ScanNodeProperties>() == null)
                 {
-                    GameObject gameObject2 = new("ScanNode", typeof(ScanNodeProperties), typeof(BoxCollider));
-                    gameObject2.layer = LayerMask.NameToLayer("ScanNode");
-                    gameObject2.transform.localScale = Vector3.one * 1f;
-                    gameObject2.transform.parent = grabbableObject.gameObject.transform;
-                    GameObject scanNodeObject = gameObject2;
+                    GameObject scanNodeObject = new("ScanNode", typeof(ScanNodeProperties), typeof(BoxCollider));
+                    scanNodeObject.layer = LayerMask.NameToLayer("ScanNode");
+                    scanNodeObject.transform.localScale = Vector3.one * 1f;
+                    scanNodeObject.transform.parent = grabbableObject.gameObject.transform;
                     scanNodeObject.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
                     ScanNodeProperties scanNode = scanNodeObject.GetComponent<ScanNodeProperties>();
                     scanNode.scrapValue = 0;

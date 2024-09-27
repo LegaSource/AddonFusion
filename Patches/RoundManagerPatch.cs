@@ -39,25 +39,39 @@ namespace AddonFusion.Patches
 
         private static void AddItems(ref RoundManager roundManager)
         {
+            List<GrabbableObject> spawnedObjects = UnityEngine.Object.FindObjectsOfType<GrabbableObject>().ToList();
             foreach (CustomItem customItem in AddonFusion.customItems.Where(i => i.IsSpawnable))
             {
                 int nbActiveItem = 0;
                 AddonProp addonProp = customItem.Item.spawnPrefab.GetComponent<AddonProp>();
-                Addon addon;
-                foreach (GrabbableObject grabbableObject in UnityEngine.Object.FindObjectsOfType<GrabbableObject>()
-                    .Where(g => (!g.itemProperties.isScrap || g.itemProperties.itemName.Equals("Kitchen knife"))
-                        && g.gameObject.GetComponent(addonProp.AddonType) != null
-                        && addonProp.CheckSpecificItem(g.gameObject)))
+                if (addonProp != null)
                 {
-                    if ((addon = grabbableObject.gameObject.GetComponent<Addon>()) != null && !addon.hasAddon) nbActiveItem++;
-                }
-                int nbActiveAddon = UnityEngine.Object.FindObjectsOfType<GrabbableObject>().Where(g => g.itemProperties == customItem.Item).Count();
-                for (int i = 0; i < nbActiveItem + ConfigManager.spawnAddonPerItem.Value - nbActiveAddon; i++)
-                {
-                    if (new System.Random().Next(1, 100) <= customItem.Rarity)
+                    Addon addon;
+                    foreach (GrabbableObject grabbableObject in spawnedObjects
+                        .Where(g => (!g.itemProperties.isScrap || g.itemProperties.itemName.Equals("Kitchen knife"))
+                            && g.gameObject.GetComponent(addonProp.AddonType) != null
+                            && addonProp.CheckSpecificItem(g.gameObject)))
                     {
-                        SpawnNewItem(ref roundManager, customItem.Item);
+                        if ((addon = grabbableObject.gameObject.GetComponent<Addon>()) != null && !addon.hasAddon) nbActiveItem++;
                     }
+                    int nbActiveAddon = spawnedObjects.Where(g => g.itemProperties == customItem.Item).Count();
+                    for (int i = 0; i < nbActiveItem + customItem.MaxSpawn - nbActiveAddon; i++)
+                    {
+                        if (new System.Random().Next(1, 100) <= customItem.Rarity)
+                        {
+                            SpawnNewItem(ref roundManager, customItem.Item);
+                        }
+                    }
+                }
+                else
+                {
+                    for (int i = 0; i < customItem.MaxSpawn; i++)
+                    {
+                        if (new System.Random().Next(1, 100) <= customItem.Rarity)
+                        {
+                            SpawnNewItem(ref roundManager, customItem.Item);
+                        }
+                    } 
                 }
             }
         }
@@ -70,45 +84,47 @@ namespace AddonFusion.Patches
                 int iteratorEphemeralItem = 0;
                 while (iteratorEphemeralItem < nbEphemeralItem)
                 {
-                    List<CutomEphemeralItem> customEphemeralItems = AddonFusion.customEphemeralItems.Where(i => new System.Random().Next(1, 100) <= i.Rarity).ToList();
-                    if (customEphemeralItems.Count <= 0)
+                    if (AddonFusion.customEphemeralItems.Count <= 0)
                     {
                         AddonFusion.mls.LogWarning("No ephemeral items could be found");
                         break;
                     }
-                    foreach (CutomEphemeralItem customEphemeralItem in customEphemeralItems)
+                    foreach (CutomEphemeralItem customEphemeralItem in AddonFusion.customEphemeralItems)
                     {
-                        GrabbableObject grabbableObject = SpawnNewItem(ref roundManager, customEphemeralItem.Item);
-                        if (grabbableObject != null)
+                        if (new System.Random().Next(1, 100) <= customEphemeralItem.Rarity)
                         {
-                            AddonFusionNetworkManager.Instance.SetEphemeralServerRpc(grabbableObject.GetComponent<NetworkObject>(), new System.Random().Next(customEphemeralItem.MinUse, customEphemeralItem.MaxUse));
-                            if (new System.Random().Next(1, 100) <= customEphemeralItem.AddonRarity)
+                            GrabbableObject grabbableObject = SpawnNewItem(ref roundManager, customEphemeralItem.Item);
+                            if (grabbableObject != null)
                             {
-                                List<AddonProp> addonProps = new List<AddonProp>();
-                                // Recherche des addons liés
-                                foreach (Item item in AddonFusion.customItems.Select(i => i.Item).Where(i => i.spawnPrefab?.GetComponent<AddonProp>() != null))
+                                AddonFusionNetworkManager.Instance.SetEphemeralServerRpc(grabbableObject.GetComponent<NetworkObject>(), new System.Random().Next(customEphemeralItem.MinUse, customEphemeralItem.MaxUse));
+                                if (new System.Random().Next(1, 100) <= customEphemeralItem.AddonRarity)
                                 {
-                                    AddonProp addonProp = item.spawnPrefab.GetComponent<AddonProp>();
-                                    if (customEphemeralItem.Item.spawnPrefab.GetComponent(addonProp.AddonType) != null && addonProp.CheckSpecificItem(customEphemeralItem.Item.spawnPrefab))
+                                    List<AddonProp> addonProps = new List<AddonProp>();
+                                    // Recherche des addons liés
+                                    foreach (Item item in AddonFusion.customItems.Select(i => i.Item).Where(i => i.spawnPrefab?.GetComponent<AddonProp>() != null))
                                     {
-                                        addonProps.Add(addonProp);
+                                        AddonProp addonProp = item.spawnPrefab.GetComponent<AddonProp>();
+                                        if (customEphemeralItem.Item.spawnPrefab.GetComponent(addonProp.AddonType) != null && addonProp.CheckSpecificItem(customEphemeralItem.Item.spawnPrefab))
+                                        {
+                                            addonProps.Add(addonProp);
+                                        }
                                     }
-                                }
-                                // Affectation d'un addon lié aléatoire
-                                if (addonProps.Count > 0)
-                                {
-                                    AddonProp addonProp = addonProps[new System.Random().Next(0, addonProps.Count - 1)];
-                                    if (addonProp != null)
+                                    // Affectation d'un addon lié aléatoire
+                                    if (addonProps.Count > 0)
                                     {
-                                        AddonFusionNetworkManager.Instance.SetAddonServerRpc(grabbableObject.GetComponent<NetworkObject>(), addonProp.itemProperties.itemName);
+                                        AddonProp addonProp = addonProps[new System.Random().Next(0, addonProps.Count - 1)];
+                                        if (addonProp != null)
+                                        {
+                                            AddonFusionNetworkManager.Instance.SetAddonServerRpc(grabbableObject.GetComponent<NetworkObject>(), addonProp.itemProperties.itemName);
+                                        }
                                     }
                                 }
                             }
-                        }
-                        iteratorEphemeralItem++;
-                        if (iteratorEphemeralItem >= nbEphemeralItem)
-                        {
-                            break;
+                            iteratorEphemeralItem++;
+                            if (iteratorEphemeralItem >= nbEphemeralItem)
+                            {
+                                break;
+                            }
                         }
                     }
                 }

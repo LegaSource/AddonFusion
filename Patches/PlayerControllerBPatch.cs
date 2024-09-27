@@ -23,21 +23,18 @@ namespace AddonFusion.Patches
             }
         }
 
-        [HarmonyPatch(typeof(PlayerControllerB), "BeginGrabObject")]
+        [HarmonyPatch(typeof(PlayerControllerB), nameof(PlayerControllerB.GrabObjectClientRpc))]
         [HarmonyPostfix]
-        private static void FixVehicleParent(ref GrabbableObject ___currentlyGrabbingObject)
+        private static void FixVehicleParent(ref PlayerControllerB __instance, bool grabValidated)
         {
             // Limiter le fix au véhicule au cas où le parent serait nécessaire ailleur
-            if (___currentlyGrabbingObject == null) return;
-            if (___currentlyGrabbingObject.transform == null) return;
-            if (___currentlyGrabbingObject.transform.parent == null) return;
-            if (___currentlyGrabbingObject.transform.parent.GetComponent<VehicleController>() != null)
+            if (grabValidated && __instance.currentlyGrabbingObject?.transform?.parent?.GetComponent<VehicleController>() != null)
             {
-                ___currentlyGrabbingObject.transform.SetParent(null);
+                __instance.currentlyGrabbingObject.transform.SetParent(null);
             }
         }
 
-        [HarmonyPatch(typeof(PlayerControllerB), "ItemSecondaryUse_performed")]
+        [HarmonyPatch(typeof(PlayerControllerB), nameof(PlayerControllerB.ItemSecondaryUse_performed))]
         [HarmonyPostfix]
         private static void ItemSecondaryActivate(ref PlayerControllerB __instance)
         {
