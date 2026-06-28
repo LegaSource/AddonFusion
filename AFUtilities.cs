@@ -1,53 +1,50 @@
-﻿using AddonFusion.Behaviours;
-using UnityEngine;
+﻿using AddonFusion.Behaviours.AddonComponents;
+using AddonFusion.Behaviours.Scripts;
+using GameNetcodeStuff;
+using LegaFusionCore.Utilities;
+using System;
 
-namespace AddonFusion
+namespace AddonFusion;
+
+public class AFUtilities
 {
-    internal class AFUtilities
+    public static void SetAddonComponent(Type addonType, GrabbableObject grabbableObject)
     {
-        public static Addon GetAddonInstalled(Component component, string addonName)
+        if (addonType != null && typeof(AddonComponent).IsAssignableFrom(addonType) && !TryGetAddonComponent(grabbableObject, out AddonComponent _))
         {
-            Addon addon = component.gameObject.GetComponent<Addon>();
-            if (addon != null
-                && addon.hasAddon
-                && !string.IsNullOrEmpty(addon.addonName)
-                && addon.addonName.Equals(addonName))
-            {
-                return addon;
-            }
-            return null;
+            AddonComponent addonComponent = grabbableObject.gameObject.AddComponent(addonType) as AddonComponent;
+            addonComponent.grabbableObject = grabbableObject;
+
+            if (grabbableObject.gameObject.TryGetComponentInChildren(out ScanNodeProperties scanNode))
+                scanNode.subText += (scanNode.subText != null ? "\n" : "") + "Addon: " + addonComponent.AddonName;
         }
+    }
 
-        public static Addon GetAddonInstalled(Component component)
+    public static void SetAddonComponent<T>(GrabbableObject grabbableObject) where T : AddonComponent => SetAddonComponent(typeof(T), grabbableObject);
+
+    public static bool TryGetAddonComponent<T>(PlayerControllerB player, out T addonComponent) where T : AddonComponent
+    {
+        addonComponent = null;
+        if (player != null)
         {
-            Addon addon = component.gameObject.GetComponent<Addon>();
-            if (addon != null
-                && addon.hasAddon)
+            for (int i = 0; i < player.ItemSlots.Length; i++)
             {
-                return addon;
-            }
-            return null;
-        }
-
-        public static EphemeralItem GetEphemeralItem(Component component)
-        {
-            EphemeralItem ephemeralItem = component.gameObject.GetComponent<EphemeralItem>();
-            if (ephemeralItem != null && ephemeralItem.isEphemeral)
-            {
-                return ephemeralItem;
-            }
-            return null;
-        }
-
-        public static void EnablePlayerActions(bool enable)
-        {
-            string[] actionNames = { "Move", "Jump", "Crouch", "Interact", "ItemSecondaryUse", "ItemTertiaryUse", "ActivateItem", "SwitchItem", "InspectItem", "Emote1", "Emote2" };
-
-            foreach (string actionName in actionNames)
-            {
-                if (enable) IngamePlayerSettings.Instance.playerInput.actions.FindAction(actionName, false).Enable();
-                else IngamePlayerSettings.Instance.playerInput.actions.FindAction(actionName, false).Disable();
+                if (TryGetAddonComponent(player.ItemSlots[i], out addonComponent))
+                    return true;
             }
         }
+        return false;
+    }
+
+    public static bool TryGetAddonComponent<T>(GrabbableObject grabbableObject, out T addonComponent) where T : AddonComponent
+    {
+        addonComponent = grabbableObject?.GetComponent<T>();
+        return addonComponent != null;
+    }
+
+    public static void SetControlTipsForAddon(GrabbableObject grabbableObject)
+    {
+        if (TryGetAddonComponent(grabbableObject, out AddonComponent addonComponent) && !addonComponent.IsPassive)
+            addonComponent.SetTipsForItem([AddonInput.Instance.GetAddonToolTip()]);
     }
 }

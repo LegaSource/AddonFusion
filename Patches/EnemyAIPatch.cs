@@ -1,151 +1,59 @@
-﻿using AddonFusion.AddonValues;
-using AddonFusion.Behaviours;
+﻿using AddonFusion.Behaviours.AddonComponents;
 using GameNetcodeStuff;
 using HarmonyLib;
-using System.Collections;
-using System.Linq;
+using LegaFusionCore.Managers.NetworkManagers;
+using LegaFusionCore.Utilities;
 using UnityEngine;
 
-namespace AddonFusion.Patches
+namespace AddonFusion.Patches;
+
+public class EnemyAIPatch
 {
-    internal class EnemyAIPatch
+    [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.MeetsStandardPlayerCollisionConditions))]
+    [HarmonyPostfix]
+    public static void ProtectiveCordParry(EnemyAI __instance, ref PlayerControllerB __result)
     {
-        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.Start))]
-        [HarmonyPostfix]
-        private static void StartEnemy(ref EnemyAI __instance)
+        if (__result != null
+            && __result.currentlyHeldObjectServer != null
+            && AFUtilities.TryGetAddonComponent(__result.currentlyHeldObjectServer, out ProtectiveCord protectiveCord)
+            && protectiveCord.isParrying)
         {
-            AddBlindableEnemy(__instance);
+            LFCNetworkManager.Instance.StunEnemyEveryoneRpc(__instance.NetworkObject, setToStunned: true, playerId: (int)__result.playerClientId);
+            LFCNetworkManager.Instance.PlayAudioEveryoneRpc($"{AddonFusion.modName}{AddonFusion.parryAudio.name}", __result.currentlyHeldObjectServer.transform.position);
+            __result = null;
         }
+    }
 
-        [HarmonyPatch(typeof(MaskedPlayerEnemy), nameof(MaskedPlayerEnemy.Start))]
-        [HarmonyPostfix]
-        private static void StartMaskedEnemy(ref MaskedPlayerEnemy __instance)
+    [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.HitEnemyOnLocalClient))]
+    [HarmonyPrefix]
+    public static bool BladeSharpenerHit(EnemyAI __instance, ref int force, PlayerControllerB playerWhoHit)
+    {
+        if (playerWhoHit != null
+            && playerWhoHit.currentlyHeldObjectServer != null
+            && AFUtilities.TryGetAddonComponent(playerWhoHit.currentlyHeldObjectServer, out BladeSharpener _)
+            && Random.Range(1, 101) < 5)
         {
-            AddBlindableEnemy(__instance);
+            force = __instance.enemyHP;
         }
+        return true;
+    }
 
-        private static void AddBlindableEnemy(EnemyAI enemyAI)
+    [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.HitEnemy))]
+    [HarmonyPrefix]
+    public static bool SaltTankHit(EnemyAI __instance, PlayerControllerB playerWhoHit)
+    {
+        if (playerWhoHit != null
+            && playerWhoHit.currentlyHeldObjectServer != null
+            && AFUtilities.TryGetAddonComponent(playerWhoHit.currentlyHeldObjectServer, out SaltTank _))
         {
-            if (enemyAI.enemyType != null
-                && enemyAI.enemyType.canBeStunned
-                && enemyAI.eye != null
-                && (string.IsNullOrEmpty(ConfigManager.lensExclusions.Value) || !ConfigManager.lensExclusions.Value.Contains(enemyAI.enemyType.enemyName)))
+            if (__instance is DressGirlAI dressGirlAI)
             {
-                FlashlightItemPatch.blindableEnemies.Add(enemyAI);
+                dressGirlAI.StopChasing();
+                if (LFCUtilities.IsServer)
+                    dressGirlAI.ChooseNewHauntingPlayerClientRpc();
             }
+            // TODO: Autres enemis
         }
-
-        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.Update))]
-        [HarmonyPostfix]
-        private static void UpdatePatch(ref EnemyAI __instance)
-        {
-            EnemyAFBehaviour enemyAFBehaviour = __instance.gameObject.GetComponent<EnemyAFBehaviour>();
-            if (enemyAFBehaviour != null
-                && enemyAFBehaviour.pyrethrinTankBehaviourIndex != -1
-                && __instance.currentBehaviourStateIndex == enemyAFBehaviour.pyrethrinTankBehaviourIndex
-                && enemyAFBehaviour.playerHitBy != null)
-            {
-                if (enemyAFBehaviour.isPyrethrinTankActive)
-                {
-                    __instance.ChangeOwnershipOfEnemy(enemyAFBehaviour.playerHitBy.actualClientId);
-                    enemyAFBehaviour.StopAggressiveAI(__instance);
-                }
-                else
-                {
-                    enemyAFBehaviour.PyrethrinTankBehaviour(__instance);
-                }
-            }
-        }
-
-        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.SwitchToBehaviourStateOnLocalClient))]
-        [HarmonyPrefix]
-        private static bool FixButlerBeesBehaviourState(ref EnemyAI __instance, ref int stateIndex)
-        {
-            if (__instance is ButlerBeesEnemyAI && stateIndex == -1)
-            {
-                __instance.currentBehaviourStateIndex = stateIndex;
-                __instance.currentBehaviourState = null;
-                return false;
-            }
-            return true;
-        }
-
-        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.OnCollideWithPlayer))]
-        [HarmonyPostfix]
-        private static void EnemyCollideWithPlayer(ref EnemyAI __instance, Collider other)
-        {
-            PlayerControllerB player = __instance.MeetsStandardPlayerCollisionConditions(other);
-            if (player != null)
-            {
-                PlayerControllerBPatch.AddParriedEnemy(player, __instance);
-            }
-        }
-
-        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.HitEnemyOnLocalClient))]
-        [HarmonyPrefix]
-        private static bool CriticalHit(ref EnemyAI __instance, ref int force, ref PlayerControllerB playerWhoHit)
-        {
-            Addon addon;
-            if (playerWhoHit != null
-                && playerWhoHit.currentlyHeldObjectServer != null
-                && playerWhoHit.currentlyHeldObjectServer is KnifeItem knife
-                && (addon = AFUtilities.GetAddonInstalled(knife, "Blade Sharpener")) != null)
-            {
-                EnemyAI enemy = __instance;
-                BladeSharpenerValue bladeSharpenerValue = AddonFusion.bladeSharpenerValues.Where(v => v.EntityName.Equals(enemy.enemyType.enemyName)).FirstOrDefault()
-                        ?? AddonFusion.bladeSharpenerValues.Where(v => v.EntityName.Equals("default")).FirstOrDefault();
-                int chance = Random.Range(0, 100);
-                if (chance < bladeSharpenerValue.CriticalSuccessChance)
-                {
-                    force = __instance.enemyHP;
-                }
-                else if (chance < bladeSharpenerValue.CriticalSuccessChance + bladeSharpenerValue.CriticalFailChance)
-                {
-                    playerWhoHit.DiscardHeldObject();
-                    return false;
-                }
-            }
-            return true;
-        }
-
-        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.HitEnemy))]
-        [HarmonyPostfix]
-        private static void HitEphemeralItem(ref PlayerControllerB playerWhoHit)
-        {
-            EphemeralItem ephemeralItem;
-            if (playerWhoHit != null
-                && playerWhoHit.currentlyHeldObjectServer != null
-                && (ephemeralItem = AFUtilities.GetEphemeralItem(playerWhoHit.currentlyHeldObjectServer)) != null)
-            {
-                ephemeralItem.use++;
-            }
-        }
-
-        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.KillEnemy))]
-        [HarmonyPostfix]
-        private static void EndEnemy(ref EnemyAI __instance)
-        {
-            FlashlightItemPatch.blindableEnemies.Remove(__instance);
-        }
-
-        [HarmonyPatch(typeof(EnemyAI), nameof(EnemyAI.SetEnemyStunned))]
-        [HarmonyPostfix]
-        private static void PostSetEnemyStunned(ref EnemyAI __instance)
-        {
-            if (!__instance.isEnemyDead && __instance.enemyType.canBeStunned)
-            {
-                EnemyAI enemy = __instance;
-                LensValue lensValue = AddonFusion.lensValues.Where(v => v.EntityName.Equals(enemy.enemyType.enemyName)).FirstOrDefault()
-                    ?? AddonFusion.lensValues.Where(v => v.EntityName.Equals("default")).FirstOrDefault();
-                __instance.StartCoroutine(ImmuneCoroutine(__instance, lensValue.ImmunityDuration));
-            }
-        }
-
-        private static IEnumerator ImmuneCoroutine(EnemyAI enemy, float immunityDuration)
-        {
-            FlashlightItemPatch.blindableEnemies.Remove(enemy);
-            yield return new WaitForSeconds(immunityDuration);
-            FlashlightItemPatch.blindableEnemies.Add(enemy);
-        }
+        return true;
     }
 }

@@ -1,129 +1,39 @@
-﻿using AddonFusion.Behaviours;
+﻿using AddonFusion.Behaviours.AddonComponents;
 using HarmonyLib;
+using LegaFusionCore.Registries;
 using System.Collections.Generic;
-using System.Linq;
-using UnityEngine;
 
-namespace AddonFusion.Patches
+namespace AddonFusion.Patches;
+
+public class GameNetworkManagerPatch
 {
-    internal class GameNetworkManagerPatch
+    [HarmonyPatch(typeof(GameNetworkManager), nameof(GameNetworkManager.SaveItemsInShip))]
+    [HarmonyPostfix]
+    public static void SaveAddons(GameNetworkManager __instance)
     {
-        [HarmonyPatch(typeof(GameNetworkManager), "Start")]
-        [HarmonyPostfix]
-        private static void StartGameNetworkManager()
+        List<GrabbableObject> grabbableObjects = LFCSpawnRegistry.GetAllAs<GrabbableObject>();
+        if (grabbableObjects == null || grabbableObjects.Count == 0 || StartOfRound.Instance.isChallengeFile)
         {
-            AddEnemyBehaviours();
+            ES3.DeleteKey("shipAddonIDs", __instance.currentSaveFileName);
+            return;
         }
 
-        [HarmonyPatch(typeof(GameNetworkManager), "SaveItemsInShip")]
-        [HarmonyPostfix]
-        private static void SaveItems(ref GameNetworkManager __instance)
+        List<string> shipAddonIDs = [];
+        for (int i = 0; i < grabbableObjects.Count && i <= StartOfRound.Instance.maxShipItemCapacity; i++)
         {
-            GrabbableObject[] grabbableObjects = Object.FindObjectsByType<GrabbableObject>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-            if (grabbableObjects == null || grabbableObjects.Length == 0)
+            if (!StartOfRound.Instance.allItemsList.itemsList.Contains(grabbableObjects[i].itemProperties) || grabbableObjects[i].deactivated || grabbableObjects[i].itemUsedUp)
             {
-                ES3.DeleteKey("shipAddonFusionItemIDs", __instance.currentSaveFileName);
+                if (grabbableObjects[i].itemProperties.spawnPrefab == null)
+                    AddonFusion.mls.LogError($"Item '{grabbableObjects[i].itemProperties.itemName}' has no spawn prefab set!");
+                continue;
             }
-            else
+            for (int j = 0; j < StartOfRound.Instance.allItemsList.itemsList.Count; j++)
             {
-                if (StartOfRound.Instance.isChallengeFile)
-                {
-                    return;
-                }
-                List<string> listAddonFusionItemIDs = new List<string>();
-                for (int i = 0; i < grabbableObjects.Length && i <= StartOfRound.Instance.maxShipItemCapacity; i++)
-                {
-                    if (!StartOfRound.Instance.allItemsList.itemsList.Contains(grabbableObjects[i].itemProperties) || grabbableObjects[i].deactivated)
-                    {
-                        continue;
-                    }
-                    if (grabbableObjects[i].itemProperties.spawnPrefab == null)
-                    {
-                        AddonFusion.mls.LogError("Item '" + grabbableObjects[i].itemProperties.itemName + "' has no spawn prefab set!");
-                    }
-                    else
-                    {
-                        if (grabbableObjects[i].itemUsedUp)
-                        {
-                            continue;
-                        }
-                        for (int j = 0; j < StartOfRound.Instance.allItemsList.itemsList.Count; j++)
-                        {
-                            string addonName = null;
-                            Addon addon;
-                            if (StartOfRound.Instance.allItemsList.itemsList[j] == grabbableObjects[i].itemProperties
-                                && (addon = AFUtilities.GetAddonInstalled(grabbableObjects[i])) != null)
-                            {
-                                addonName = addon.addonName;
-                            }
-                            int maxUse = -1;
-                            EphemeralItem ephemeralItem;
-                            if (StartOfRound.Instance.allItemsList.itemsList[j] == grabbableObjects[i].itemProperties
-                                && (ephemeralItem = AFUtilities.GetEphemeralItem(grabbableObjects[i])) != null)
-                            {
-                                if (grabbableObjects[i] is FlashlightItem flashlight)
-                                {
-                                    maxUse = (int)(flashlight.insertedBattery.charge * 100f);
-                                }
-                                else if (grabbableObjects[i] is SprayPaintItem sprayPaintItem)
-                                {
-                                    maxUse = (int)(sprayPaintItem.sprayCanTank * 100f);
-                                }
-                                else if (grabbableObjects[i] is TetraChemicalItem tetraChemicalItem)
-                                {
-                                    maxUse = (int)(tetraChemicalItem.fuel * 100f);
-                                }
-                                else
-                                {
-                                    maxUse = ephemeralItem.maxUse - ephemeralItem.use;
-                                }
-                            }
-                            if (!string.IsNullOrEmpty(addonName) || maxUse != -1)
-                            {
-                                listAddonFusionItemIDs.Add(j + "," + addonName + "," + maxUse);
-                            }
-                        }
-                    }
-                }
-                if (listAddonFusionItemIDs.Count <= 0)
-                {
-                    AddonFusion.mls.LogDebug("No value to save.");
-                }
-                else
-                {
-                    ES3.Save("shipAddonFusionItemIDs", listAddonFusionItemIDs.ToArray(), __instance.currentSaveFileName);
-                }
+                if (StartOfRound.Instance.allItemsList.itemsList[j] == grabbableObjects[i].itemProperties && AFUtilities.TryGetAddonComponent(grabbableObjects[i], out AddonComponent addonComponent))
+                    shipAddonIDs.Add($"{j},{addonComponent.AddonName}");
             }
         }
-
-        public static void AddEnemyBehaviours()
-        {
-            AddPyrethrinTankBehaviour();
-        }
-
-        public static void AddPyrethrinTankBehaviour()
-        {
-            foreach (EnemyType enemyType in Resources.FindObjectsOfTypeAll<EnemyType>())
-            {
-                if (enemyType != null
-                    && enemyType.enemyPrefab != null
-                    && enemyType.enemyPrefab.TryGetComponent<EnemyAI>(out var enemyAI)
-                    && AddonFusion.pyrethrinTankValues.Select(e => e.EntityName).Contains(enemyType.enemyName))
-                {
-                    EnemyAFBehaviour enemyAFBehaviour = enemyType.enemyPrefab.gameObject.AddComponent<EnemyAFBehaviour>();
-                    enemyAI.enemyBehaviourStates = new List<EnemyBehaviourState>(enemyAI.enemyBehaviourStates)
-                    {
-                        new EnemyBehaviourState
-                        {
-                            name = "PyrethrinTank"
-                        }
-                    }.ToArray();
-                    if (enemyAFBehaviour != null)
-                    {
-                        enemyAFBehaviour.pyrethrinTankBehaviourIndex = enemyAI.enemyBehaviourStates.Length - 1;
-                    }
-                }
-            }
-        }
+        if (shipAddonIDs.Count > 0)
+            ES3.Save("shipAddonIDs", shipAddonIDs.ToArray(), __instance.currentSaveFileName);
     }
 }
